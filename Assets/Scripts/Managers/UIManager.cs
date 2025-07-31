@@ -101,8 +101,8 @@ namespace BugFixerGame
             GameManager.OnRoomCompleted += ShowRoomResult;
             GameManager.OnGameCompleted += ShowGameEndResult;
 
-            // 订阅RoomManager事件
-            RoomManager.OnRoomLoaded += HandleRoomLoaded;
+            // 订阅SimplifiedRoomManager事件
+            SimplifiedRoomManager.OnRoomLoaded += HandleRoomLoaded;
         }
 
         private void OnDisable()
@@ -114,8 +114,8 @@ namespace BugFixerGame
             GameManager.OnRoomCompleted -= ShowRoomResult;
             GameManager.OnGameCompleted -= ShowGameEndResult;
 
-            // 取消订阅RoomManager事件
-            RoomManager.OnRoomLoaded -= HandleRoomLoaded;
+            // 取消订阅SimplifiedRoomManager事件
+            SimplifiedRoomManager.OnRoomLoaded -= HandleRoomLoaded;
         }
 
         #endregion

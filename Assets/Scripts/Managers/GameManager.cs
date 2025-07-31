@@ -17,6 +17,35 @@ namespace BugFixerGame
         Paused              // 暂停
     }
 
+    // Bug类型枚举
+    public enum BugType
+    {
+        None,
+        ObjectMissing,      // 物品缺失
+        ObjectAdded,        // 额外物品
+        ObjectMoved,        // 物品位置改变
+        MaterialMissing,    // 材质丢失（紫色）
+        CodeEffect,         // 代码特效乱飞
+        ClippingBug,        // 穿模bug（床卡在地里）
+        ExtraEyes,          // 窗外多眼睛
+        ObjectFlickering,   // 物品闪烁
+        CollisionMissing    // 物品丢失碰撞
+    }
+
+    // 房间配置数据
+    [System.Serializable]
+    public class RoomConfig
+    {
+        public int roomId;
+        public GameObject normalRoomPrefab;     // 正常房间预设
+        public GameObject buggyRoomPrefab;      // 有Bug的房间预设（可选）
+        public bool hasBug;                     // 这个房间是否固定有Bug
+        public BugType bugType;                 // 固定的Bug类型
+
+        [TextArea(2, 4)]
+        public string bugDescription;           // Bug描述（用于调试）
+    }
+
     // 房间结果类型
     public enum RoomResult
     {
@@ -79,6 +108,28 @@ namespace BugFixerGame
             {
                 Destroy(gameObject);
             }
+        }
+
+        private void OnEnable()
+        {
+            // 订阅UIManager事件
+            UIManager.OnStartGameClicked += StartNewGame;
+            UIManager.OnClearBugClicked += OnPlayerDetectBug;
+            UIManager.OnNextRoomClicked += OnPlayerProceedToNextRoom;
+            UIManager.OnRestartClicked += RestartGame;
+            UIManager.OnMainMenuClicked += ReturnToMainMenu;
+            UIManager.OnResumeClicked += ResumeGame;
+        }
+
+        private void OnDisable()
+        {
+            // 取消订阅UIManager事件
+            UIManager.OnStartGameClicked -= StartNewGame;
+            UIManager.OnClearBugClicked -= OnPlayerDetectBug;
+            UIManager.OnNextRoomClicked -= OnPlayerProceedToNextRoom;
+            UIManager.OnRestartClicked -= RestartGame;
+            UIManager.OnMainMenuClicked -= ReturnToMainMenu;
+            UIManager.OnResumeClicked -= ResumeGame;
         }
 
         private void Start()
@@ -228,8 +279,8 @@ namespace BugFixerGame
 
             Debug.Log($"房间 {currentRoomIndex}: {(currentRoomHasBug ? "有Bug" : "无Bug")}");
 
-            // 这里可以通知RoomManager生成对应的房间
-            // RoomManager.Instance?.GenerateRoom(currentRoomIndex, currentRoomHasBug);
+            // 通知SimplifiedRoomManager加载对应的房间
+            SimplifiedRoomManager.Instance?.LoadRoom(currentRoomIndex - 1, currentRoomHasBug);
         }
 
         private void StartMemoryPhase()
@@ -265,13 +316,13 @@ namespace BugFixerGame
         {
             if (currentState == GameState.CheckPhase)
             {
-                // 空格键 - 清除Bug
+                // 空格键 - 清除Bug（也可以通过UI按钮触发）
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
                     OnPlayerDetectBug();
                 }
 
-                // 右键或特定键 - 进入下一房间
+                // 右键或特定键 - 进入下一房间（也可以通过UI按钮触发）
                 if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Return))
                 {
                     OnPlayerProceedToNextRoom();
@@ -315,8 +366,11 @@ namespace BugFixerGame
             RoomResult result;
             int scoreChange = 0;
 
+            // 通过SimplifiedRoomManager判断当前房间是否有Bug
+            bool roomActuallyHasBug = SimplifiedRoomManager.Instance?.CurrentRoomHasBug() ?? false;
+
             // 判断玩家的行为是否正确
-            if ((currentRoomHasBug && playerDetectedBug) || (!currentRoomHasBug && !playerDetectedBug))
+            if ((roomActuallyHasBug && playerDetectedBug) || (!roomActuallyHasBug && !playerDetectedBug))
             {
                 // 正确判断
                 result = RoomResult.Perfect;
@@ -327,6 +381,12 @@ namespace BugFixerGame
                 // 错误判断
                 result = RoomResult.Wrong;
                 scoreChange = wrongPenalty;
+            }
+
+            // 如果玩家检测到Bug，清除房间中的Bug效果
+            if (playerDetectedBug && roomActuallyHasBug)
+            {
+                SimplifiedRoomManager.Instance?.ClearCurrentRoomBugs();
             }
 
             // 更新分数

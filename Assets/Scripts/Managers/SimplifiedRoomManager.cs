@@ -5,34 +5,7 @@ using UnityEngine;
 
 namespace BugFixerGame
 {
-    // Bug类型枚举（简化版）
-    public enum BugType
-    {
-        None,
-        ObjectMissing,      // 物品缺失
-        ObjectAdded,        // 额外物品
-        ObjectMoved,        // 物品位置改变
-        MaterialMissing,    // 材质丢失（紫色）
-        CodeEffect,         // 代码特效乱飞
-        ClippingBug,        // 穿模bug（床卡在地里）
-        ExtraEyes          // 窗外多眼睛
-    }
-
-    // 房间配置数据（预设配置）
-    [System.Serializable]
-    public class RoomConfig
-    {
-        public int roomId;
-        public GameObject normalRoomPrefab;     // 正常房间预设
-        public GameObject buggyRoomPrefab;      // 有Bug的房间预设（可选）
-        public bool hasBug;                     // 这个房间是否固定有Bug
-        public BugType bugType;                 // 固定的Bug类型
-
-        [TextArea(2, 4)]
-        public string bugDescription;           // Bug描述（用于调试）
-    }
-
-    public class RoomManager : MonoBehaviour
+    public class SimplifiedRoomManager : MonoBehaviour
     {
         [Header("房间容器")]
         [SerializeField] private Transform roomContainer;           // 房间容器
@@ -42,19 +15,17 @@ namespace BugFixerGame
         [Header("房间配置")]
         [SerializeField] private RoomConfig[] roomConfigs;          // 房间配置数组
 
-        [Header("特效预设")]
-        [SerializeField] private Material missingTextureMaterial;   // 紫色材质
-        [SerializeField] private GameObject codeEffectPrefab;       // 代码特效预设
-        [SerializeField] private GameObject extraEyesPrefab;        // 额外眼睛预设
-
         // 当前房间状态
         private RoomConfig currentRoomConfig;
         private GameObject currentOriginalRoom;
         private GameObject currentDisplayRoom;
         private int currentRoomIndex = -1;
 
+        // Bug对象管理
+        private List<BugObject> currentBugObjects = new List<BugObject>();
+
         // 单例
-        public static RoomManager Instance { get; private set; }
+        public static SimplifiedRoomManager Instance { get; private set; }
 
         // 事件
         public static event Action<int> OnRoomGenerated;            // 房间生成完成
@@ -93,10 +64,8 @@ namespace BugFixerGame
 
         private void InitializeRoomManager()
         {
-            // 初始化容器
             SetupContainers();
-
-            Debug.Log("RoomManager初始化完成");
+            Debug.Log("SimplifiedRoomManager初始化完成");
         }
 
         private void SetupContainers()
@@ -141,16 +110,12 @@ namespace BugFixerGame
                 case GameState.CheckPhase:
                     ShowCurrentRoom();
                     break;
-
-                case GameState.RoomResult:
-                    // 保持当前显示，可以在这里高亮Bug位置
-                    break;
             }
         }
 
         #endregion
 
-        #region 房间生成和加载
+        #region 房间加载
 
         public void LoadRoom(int roomIndex, bool shouldShowBugVersion)
         {
@@ -171,7 +136,7 @@ namespace BugFixerGame
             // 加载正常版本房间（用于记忆阶段）
             LoadOriginalRoom();
 
-            // 加载当前房间（根据shouldShowBugVersion决定显示哪个版本）
+            // 加载当前房间并设置Bug状态
             LoadCurrentRoom(shouldShowBugVersion);
 
             // 通知其他系统
@@ -192,30 +157,84 @@ namespace BugFixerGame
             currentOriginalRoom = Instantiate(currentRoomConfig.normalRoomPrefab, originalRoomParent);
             currentOriginalRoom.name = $"OriginalRoom_{currentRoomIndex}";
             currentOriginalRoom.SetActive(false); // 初始隐藏
+
+            // 确保原始房间的所有BugObject都是关闭状态
+            SetAllBugObjectsInRoom(currentOriginalRoom, false);
         }
 
         private void LoadCurrentRoom(bool shouldShowBugVersion)
         {
-            GameObject prefabToUse;
-
-            // 决定使用哪个预设
-            if (shouldShowBugVersion && currentRoomConfig.hasBug && currentRoomConfig.buggyRoomPrefab != null)
-            {
-                // 使用预制的Bug版本
-                prefabToUse = currentRoomConfig.buggyRoomPrefab;
-                Debug.Log($"使用Bug版本房间，Bug类型: {currentRoomConfig.bugType}");
-            }
-            else
-            {
-                // 使用正常版本
-                prefabToUse = currentRoomConfig.normalRoomPrefab;
-                Debug.Log("使用正常版本房间");
-            }
+            // 总是使用正常版本作为基础
+            GameObject prefabToUse = currentRoomConfig.normalRoomPrefab;
 
             // 实例化当前房间
             currentDisplayRoom = Instantiate(prefabToUse, currentRoomParent);
-            currentDisplayRoom.name = $"CurrentRoom_{currentRoomIndex}_{(shouldShowBugVersion ? "Bug" : "Normal")}";
+            currentDisplayRoom.name = $"CurrentRoom_{currentRoomIndex}";
             currentDisplayRoom.SetActive(false); // 初始隐藏
+
+            // 收集房间内的所有BugObject
+            CollectBugObjects();
+
+            // 根据需要激活Bug效果
+            if (shouldShowBugVersion && currentRoomConfig.hasBug)
+            {
+                ActivateRoomBugs();
+                Debug.Log($"激活房间Bug: {currentRoomConfig.bugType}");
+            }
+            else
+            {
+                DeactivateRoomBugs();
+                Debug.Log("房间无Bug或显示正常版本");
+            }
+        }
+
+        #endregion
+
+        #region BugObject管理
+
+        private void CollectBugObjects()
+        {
+            currentBugObjects.Clear();
+
+            if (currentDisplayRoom != null)
+            {
+                BugObject[] bugObjects = currentDisplayRoom.GetComponentsInChildren<BugObject>();
+                currentBugObjects.AddRange(bugObjects);
+
+                Debug.Log($"找到 {currentBugObjects.Count} 个BugObject");
+            }
+        }
+
+        private void ActivateRoomBugs()
+        {
+            foreach (BugObject bugObj in currentBugObjects)
+            {
+                // 只激活与当前房间Bug类型匹配的BugObject
+                if (bugObj.GetBugType() == currentRoomConfig.bugType)
+                {
+                    bugObj.ActivateBug();
+                }
+            }
+        }
+
+        private void DeactivateRoomBugs()
+        {
+            foreach (BugObject bugObj in currentBugObjects)
+            {
+                bugObj.DeactivateBug();
+            }
+        }
+
+        private void SetAllBugObjectsInRoom(GameObject room, bool active)
+        {
+            BugObject[] bugObjects = room.GetComponentsInChildren<BugObject>();
+            foreach (BugObject bugObj in bugObjects)
+            {
+                if (active)
+                    bugObj.ActivateBug();
+                else
+                    bugObj.DeactivateBug();
+            }
         }
 
         #endregion
@@ -261,14 +280,14 @@ namespace BugFixerGame
         {
             if (currentRoomConfig == null) return false;
 
-            // 只有当前显示的是Bug版本，且配置确实有Bug时才返回true
-            return currentRoomConfig.hasBug && IsShowingBugVersion();
-        }
+            // 检查是否有激活的BugObject
+            foreach (BugObject bugObj in currentBugObjects)
+            {
+                if (bugObj.IsBugActive())
+                    return true;
+            }
 
-        private bool IsShowingBugVersion()
-        {
-            // 通过房间名称判断当前显示的是否是Bug版本
-            return currentDisplayRoom != null && currentDisplayRoom.name.Contains("Bug");
+            return false;
         }
 
         public BugType GetCurrentBugType()
@@ -285,18 +304,10 @@ namespace BugFixerGame
 
             Debug.Log($"清除房间Bug: {currentRoomConfig.bugType}");
 
-            // 销毁当前Bug版本房间
-            if (currentDisplayRoom != null)
-            {
-                DestroyImmediate(currentDisplayRoom);
-            }
+            // 停用所有激活的BugObject
+            DeactivateRoomBugs();
 
-            // 重新加载正常版本
-            currentDisplayRoom = Instantiate(currentRoomConfig.normalRoomPrefab, currentRoomParent);
-            currentDisplayRoom.name = $"CurrentRoom_{currentRoomIndex}_Fixed";
-            currentDisplayRoom.SetActive(true);
-
-            Debug.Log("Bug已清除，显示正常版本房间");
+            Debug.Log("所有Bug已清除");
         }
 
         #endregion
@@ -323,12 +334,19 @@ namespace BugFixerGame
             return roomConfigs?.Length ?? 0;
         }
 
+        public List<BugObject> GetCurrentBugObjects()
+        {
+            return new List<BugObject>(currentBugObjects);
+        }
+
         #endregion
 
         #region 清理
 
         private void ClearCurrentRooms()
         {
+            currentBugObjects.Clear();
+
             if (currentOriginalRoom != null)
             {
                 DestroyImmediate(currentOriginalRoom);
@@ -353,8 +371,8 @@ namespace BugFixerGame
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(10, 250, 500, 300));
-            GUILayout.Label("=== Room Manager Debug ===");
+            GUILayout.BeginArea(new Rect(10, 250, 500, 400));
+            GUILayout.Label("=== Simplified Room Manager Debug ===");
 
             if (currentRoomConfig != null)
             {
@@ -362,7 +380,16 @@ namespace BugFixerGame
                 GUILayout.Label($"房间有Bug: {currentRoomConfig.hasBug}");
                 GUILayout.Label($"Bug类型: {currentRoomConfig.bugType}");
                 GUILayout.Label($"Bug描述: {currentRoomConfig.bugDescription}");
-                GUILayout.Label($"当前显示Bug版本: {IsShowingBugVersion()}");
+                GUILayout.Label($"BugObject数量: {currentBugObjects.Count}");
+
+                // 显示当前激活的BugObject
+                int activeBugs = 0;
+                foreach (BugObject bugObj in currentBugObjects)
+                {
+                    if (bugObj.IsBugActive())
+                        activeBugs++;
+                }
+                GUILayout.Label($"激活的Bug: {activeBugs}");
 
                 GUILayout.Space(10);
 
@@ -376,9 +403,27 @@ namespace BugFixerGame
                     ShowCurrentRoom();
                 }
 
-                if (GUILayout.Button("清除Bug"))
+                if (GUILayout.Button("激活所有Bug"))
+                {
+                    ActivateRoomBugs();
+                }
+
+                if (GUILayout.Button("清除所有Bug"))
                 {
                     ClearCurrentRoomBugs();
+                }
+
+                GUILayout.Space(10);
+
+                // 显示每个BugObject的状态
+                if (currentBugObjects.Count > 0)
+                {
+                    GUILayout.Label("BugObject列表:");
+                    foreach (BugObject bugObj in currentBugObjects)
+                    {
+                        string status = bugObj.IsBugActive() ? "ON" : "OFF";
+                        GUILayout.Label($"- {bugObj.name}: {bugObj.GetBugType()} [{status}]");
+                    }
                 }
 
                 GUILayout.Space(10);
@@ -407,39 +452,6 @@ namespace BugFixerGame
             }
 
             GUILayout.EndArea();
-        }
-
-        // 验证房间配置的完整性
-        [ContextMenu("验证房间配置")]
-        private void ValidateRoomConfigs()
-        {
-            if (roomConfigs == null || roomConfigs.Length == 0)
-            {
-                Debug.LogWarning("没有配置任何房间！");
-                return;
-            }
-
-            for (int i = 0; i < roomConfigs.Length; i++)
-            {
-                RoomConfig config = roomConfigs[i];
-
-                if (config.normalRoomPrefab == null)
-                {
-                    Debug.LogError($"房间 {i} 缺少正常版本预设！");
-                }
-
-                if (config.hasBug && config.buggyRoomPrefab == null)
-                {
-                    Debug.LogWarning($"房间 {i} 标记有Bug但没有Bug版本预设，将使用正常版本！");
-                }
-
-                if (config.hasBug && string.IsNullOrEmpty(config.bugDescription))
-                {
-                    Debug.LogWarning($"房间 {i} 有Bug但没有描述！");
-                }
-            }
-
-            Debug.Log($"房间配置验证完成，共 {roomConfigs.Length} 个房间");
         }
 
         #endregion
