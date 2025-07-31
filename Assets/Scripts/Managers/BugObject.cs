@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -9,6 +10,26 @@ namespace BugFixerGame
         [Header("Bug配置")]
         [SerializeField] private BugType bugType = BugType.None;
         [SerializeField] private bool startWithBugActive = false;
+
+        [Header("正确物体配置")]
+        [SerializeField] private GameObject correctObject;          // 正确的物体
+        [Tooltip("修复Bug后显示的正确物体")]
+        public GameObject CorrectObject
+        {
+            get { return correctObject; }
+            set { correctObject = value; InitializeCorrectObject(); }
+        }
+        [SerializeField] private float popupAnimationTime = 0.5f;  // 弹出动画时间
+        [SerializeField]
+        private AnimationCurve popupCurve = new AnimationCurve(
+            new Keyframe(0, 0, 0, 0),
+            new Keyframe(0.6f, 1.1f, 2, 2),
+            new Keyframe(1, 1, 0, 0)
+        ); // 弹出动画曲线
+
+        [Header("点击检测配置")]
+        [SerializeField] private bool enableClickToFix = true;      // 是否启用点击修复
+        [SerializeField] private LayerMask clickLayerMask = -1;     // 点击检测层级
 
         [Header("闪烁Bug设置")]
         [SerializeField] private float flickerInterval = 0.5f;
@@ -39,10 +60,20 @@ namespace BugFixerGame
 
         // 运行时状态
         private bool isBugActive = false;
+        private bool isBeingFixed = false;  // 是否正在修复中
         private Coroutine flickerCoroutine;
+        private Coroutine popupCoroutine;
 
         // 特效对象
         private GameObject spawnedEffect;
+
+        // 点击检测组件
+        private Collider2D clickCollider2D;
+        private Collider clickCollider3D;
+
+        // 事件
+        public static event Action<BugObject> OnBugClicked;         // Bug被点击
+        public static event Action<BugObject> OnBugFixed;           // Bug被修复完成
 
         #region Unity生命周期
 
@@ -50,6 +81,7 @@ namespace BugFixerGame
         {
             CacheComponents();
             SaveOriginalState();
+            InitializeCorrectObject();
 
             if (startWithBugActive)
             {
@@ -57,9 +89,171 @@ namespace BugFixerGame
             }
         }
 
+        private void Update()
+        {
+            HandleClickDetection();
+        }
+
         private void OnDestroy()
         {
             DeactivateBug();
+        }
+
+        #endregion
+
+        #region Bug修复系统
+
+        private void StartBugFix()
+        {
+            if (isBeingFixed) return;
+
+            isBeingFixed = true;
+
+            // 立即停用Bug效果
+            DeactivateBug();
+
+            // 显示正确物体并播放动画
+            if (correctObject != null)
+            {
+                ShowCorrectObject();
+            }
+            else
+            {
+                // 如果没有正确物体，直接完成修复
+                CompleteBugFix();
+            }
+        }
+
+        private void ShowCorrectObject()
+        {
+            correctObject.SetActive(true);
+
+            // 播放弹出动画
+            if (popupCoroutine != null)
+                StopCoroutine(popupCoroutine);
+
+            popupCoroutine = StartCoroutine(PopupAnimation());
+        }
+
+        private IEnumerator PopupAnimation()
+        {
+            Vector3 originalScale = correctObject.transform.localScale;
+            correctObject.transform.localScale = Vector3.zero;
+
+            float elapsedTime = 0f;
+
+            while (elapsedTime < popupAnimationTime)
+            {
+                elapsedTime += Time.deltaTime;
+                float progress = elapsedTime / popupAnimationTime;
+                float curveValue = popupCurve.Evaluate(progress);
+
+                correctObject.transform.localScale = originalScale * curveValue;
+
+                yield return null;
+            }
+
+            correctObject.transform.localScale = originalScale;
+
+            // 动画完成后，等待一段时间再完成修复
+            yield return new WaitForSeconds(0.5f);
+
+            CompleteBugFix();
+        }
+
+        private void CompleteBugFix()
+        {
+            Debug.Log($"Bug修复完成: {gameObject.name}");
+
+            // 触发修复完成事件
+            OnBugFixed?.Invoke(this);
+
+            // 销毁Bug物体（延迟销毁以确保事件处理完成）
+            StartCoroutine(DestroyBugObjectDelayed());
+        }
+
+        private IEnumerator DestroyBugObjectDelayed()
+        {
+            yield return new WaitForEndOfFrame();
+
+            // 销毁这个Bug物体
+            if (gameObject != null)
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        #endregion
+
+        #region 点击检测系统
+
+        // 由PlayerController调用的点击方法
+        public void OnClickedByPlayer()
+        {
+            // 只有当Bug激活且没有正在修复时才处理点击
+            if (!isBugActive || isBeingFixed) return;
+
+            Debug.Log($"玩家点击了Bug物体: {gameObject.name}");
+
+            // 触发点击事件
+            OnBugClicked?.Invoke(this);
+
+            // 开始修复Bug
+            StartBugFix();
+        }
+
+        private void HandleClickDetection()
+        {
+            // 这个方法现在由PlayerController处理，保留作为备用
+            // 只有当Bug激活且启用点击修复时才检测点击
+            if (!isBugActive || !enableClickToFix || isBeingFixed) return;
+
+            if (Input.GetMouseButtonDown(0)) // 左键点击
+            {
+                CheckMouseClick();
+            }
+        }
+
+        private void CheckMouseClick()
+        {
+            Vector3 mousePosition = Input.mousePosition;
+            Ray ray = Camera.main.ScreenPointToRay(mousePosition);
+
+            // 2D点击检测
+            if (clickCollider2D != null)
+            {
+                Vector2 worldPoint = Camera.main.ScreenToWorldPoint(mousePosition);
+                if (clickCollider2D.OverlapPoint(worldPoint))
+                {
+                    OnClickDetected();
+                    return;
+                }
+            }
+
+            // 3D点击检测
+            if (clickCollider3D != null)
+            {
+                RaycastHit hit;
+                if (Physics.Raycast(ray, out hit, Mathf.Infinity, clickLayerMask))
+                {
+                    if (hit.collider == clickCollider3D)
+                    {
+                        OnClickDetected();
+                        return;
+                    }
+                }
+            }
+        }
+
+        private void OnClickDetected()
+        {
+            Debug.Log($"Bug物体被直接点击: {gameObject.name}");
+
+            // 触发点击事件
+            OnBugClicked?.Invoke(this);
+
+            // 开始修复Bug
+            StartBugFix();
         }
 
         #endregion
@@ -72,6 +266,36 @@ namespace BugFixerGame
             spriteRenderer = GetComponent<SpriteRenderer>();
             objectCollider2D = GetComponent<Collider2D>();
             objectCollider3D = GetComponent<Collider>();
+
+            // 点击检测组件（可能与碰撞检测组件相同）
+            clickCollider2D = objectCollider2D;
+            clickCollider3D = objectCollider3D;
+
+            // 如果没有碰撞体，尝试添加一个用于点击检测
+            if (clickCollider2D == null && clickCollider3D == null)
+            {
+                if (spriteRenderer != null)
+                {
+                    // 2D物体添加BoxCollider2D
+                    clickCollider2D = gameObject.AddComponent<BoxCollider2D>();
+                    clickCollider2D.isTrigger = true;
+                }
+                else if (objectRenderer != null)
+                {
+                    // 3D物体添加BoxCollider
+                    clickCollider3D = gameObject.AddComponent<BoxCollider>();
+                    clickCollider3D.isTrigger = true;
+                }
+            }
+        }
+
+        private void InitializeCorrectObject()
+        {
+            // 确保正确物体在开始时是隐藏的
+            if (correctObject != null)
+            {
+                correctObject.SetActive(false);
+            }
         }
 
         private void SaveOriginalState()
@@ -360,6 +584,22 @@ namespace BugFixerGame
         public bool IsBugActive()
         {
             return isBugActive;
+        }
+
+        public bool IsBeingFixed()
+        {
+            return isBeingFixed;
+        }
+
+        public GameObject GetCorrectObject()
+        {
+            return correctObject;
+        }
+
+        public void SetCorrectObject(GameObject obj)
+        {
+            correctObject = obj;
+            InitializeCorrectObject();
         }
 
         public void SetBugType(BugType newBugType)

@@ -119,6 +119,14 @@ namespace BugFixerGame
             UIManager.OnRestartClicked += RestartGame;
             UIManager.OnMainMenuClicked += ReturnToMainMenu;
             UIManager.OnResumeClicked += ResumeGame;
+
+            // 订阅PlayerController事件（新的点击系统）
+            PlayerController.OnBugObjectClicked += OnPlayerClickedBug;
+            PlayerController.OnEmptySpaceClicked += OnPlayerClickedEmpty;
+
+            // 订阅BugObject事件
+            BugObject.OnBugClicked += OnBugObjectClicked;
+            BugObject.OnBugFixed += OnBugObjectFixed;
         }
 
         private void OnDisable()
@@ -130,6 +138,14 @@ namespace BugFixerGame
             UIManager.OnRestartClicked -= RestartGame;
             UIManager.OnMainMenuClicked -= ReturnToMainMenu;
             UIManager.OnResumeClicked -= ResumeGame;
+
+            // 取消订阅PlayerController事件
+            PlayerController.OnBugObjectClicked -= OnPlayerClickedBug;
+            PlayerController.OnEmptySpaceClicked -= OnPlayerClickedEmpty;
+
+            // 取消订阅BugObject事件
+            BugObject.OnBugClicked -= OnBugObjectClicked;
+            BugObject.OnBugFixed -= OnBugObjectFixed;
         }
 
         private void Start()
@@ -141,6 +157,95 @@ namespace BugFixerGame
         {
             HandleInput();
             UpdateCurrentState();
+        }
+
+        #endregion
+
+        #region PlayerController点击系统处理
+
+        private void OnPlayerClickedBug(BugObject bugObject)
+        {
+            if (currentState != GameState.CheckPhase) return;
+
+            Debug.Log($"玩家通过PlayerController点击了Bug物体: {bugObject.name}");
+
+            // 标记玩家检测到Bug
+            playerDetectedBug = true;
+        }
+
+        private void OnPlayerClickedEmpty(Vector3 position)
+        {
+            if (currentState != GameState.CheckPhase) return;
+
+            Debug.Log($"玩家点击了空白区域: {position}");
+
+            // 点击空白区域不算检测到Bug
+            // 可以在这里添加错误点击的反馈
+        }
+
+        #endregion
+
+        #region BugObject点击系统处理
+
+        private void OnBugObjectClicked(BugObject bugObject)
+        {
+            if (currentState != GameState.CheckPhase) return;
+
+            Debug.Log($"玩家点击了Bug物体: {bugObject.name}");
+
+            // 标记玩家检测到Bug
+            playerDetectedBug = true;
+        }
+
+        private void OnBugObjectFixed(BugObject bugObject)
+        {
+            if (currentState != GameState.CheckPhase) return;
+
+            Debug.Log($"Bug物体修复完成: {bugObject.name}");
+
+            // 立即给予正反馈分数
+            int scoreChange = perfectScore;
+            currentScore += scoreChange;
+            currentScore = Mathf.Max(0, currentScore);
+
+            OnScoreChanged?.Invoke(currentScore);
+
+            // 显示即时得分反馈
+            ShowInstantScoreFeedback(scoreChange);
+
+            // 检查房间内是否还有其他Bug
+            CheckRoomCompletion();
+        }
+
+        private void ShowInstantScoreFeedback(int scoreChange)
+        {
+            // 通知UI显示得分动画
+            // 可以在这里添加特殊的得分特效
+            Debug.Log($"即时得分: +{scoreChange}");
+        }
+
+        private void CheckRoomCompletion()
+        {
+            // 检查当前房间是否还有活动的Bug
+            bool hasActiveBugs = SimplifiedRoomManager.Instance?.CurrentRoomHasBug() ?? false;
+
+            if (!hasActiveBugs)
+            {
+                // 房间内所有Bug都被修复，可以自动进入下一房间
+                Debug.Log("房间内所有Bug已修复完成！");
+
+                // 延迟一段时间后自动进入下一房间
+                StartCoroutine(AutoProceedToNextRoom());
+            }
+        }
+
+        private IEnumerator AutoProceedToNextRoom()
+        {
+            // 等待一段时间让玩家看到最后的修复效果
+            yield return new WaitForSeconds(1.5f);
+
+            // 自动进入下一房间
+            ProcessRoomResult();
         }
 
         #endregion
