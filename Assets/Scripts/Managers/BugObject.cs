@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BugFixerGame
 {
-    // Bug对象脚本 - 挂载到需要Bug效果的GameObject上
+    // Bug对象类 - 负责管理需要Bug效果的GameObject上
     public class BugObject : MonoBehaviour
     {
         [Header("Bug配置")]
@@ -27,10 +27,6 @@ namespace BugFixerGame
             new Keyframe(1, 1, 0, 0)
         ); // 弹出动画曲线
 
-        [Header("点击检测配置")]
-        [SerializeField] private bool enableClickToFix = true;      // 是否启用点击修复
-        [SerializeField] private LayerMask clickLayerMask = -1;     // 点击检测层级
-
         [Header("闪烁Bug设置")]
         [SerializeField] private float flickerInterval = 0.5f;
         [SerializeField] private float flickerAlphaMin = 0.3f;
@@ -40,10 +36,11 @@ namespace BugFixerGame
         [SerializeField] private float collisionMissingAlpha = 0.8f;
 
         [Header("材质Bug设置")]
-        [SerializeField] private Material buggyMaterial; // 紫色材质等
+        [SerializeField] private Material buggyMaterial; // 纯色材质等
 
-        [Header("移动Bug设置")]
-        [SerializeField] private Vector3 bugOffset = Vector3.zero;
+        [Header("闪烁Bug调试和修复")]
+        [SerializeField] private bool debugFlickering = true;
+        [SerializeField] private bool autoFixMaterialTransparency = true; // 自动修复材质透明度设置
 
         // 组件缓存
         private Renderer objectRenderer;
@@ -52,13 +49,14 @@ namespace BugFixerGame
         private Collider objectCollider3D;
 
         // 原始状态保存
-        private Vector3 originalPosition;
         private Color originalColor;
         private Material originalMaterial;
         private bool originalCollider2DEnabled;
         private bool originalCollider3DEnabled;
+        private bool originalCollider2DIsTrigger;
+        private bool originalCollider3DIsTrigger;
 
-        // 运行时状态
+        // 当前状态
         private bool isBugActive = false;
         private bool isBeingFixed = false;  // 是否正在修复中
         private Coroutine flickerCoroutine;
@@ -66,10 +64,6 @@ namespace BugFixerGame
 
         // 特效对象
         private GameObject spawnedEffect;
-
-        // 点击检测组件
-        private Collider2D clickCollider2D;
-        private Collider clickCollider3D;
 
         // 事件
         public static event Action<BugObject> OnBugClicked;         // Bug被点击
@@ -91,7 +85,8 @@ namespace BugFixerGame
 
         private void Update()
         {
-            HandleClickDetection();
+            // 已经由Player系统管理点击检测，现在主要由Player处理
+            // HandleClickDetection(); // 注释掉这行
         }
 
         private void OnDestroy()
@@ -101,7 +96,7 @@ namespace BugFixerGame
 
         #endregion
 
-        #region Bug修复系统
+        #region Bug修复相关
 
         private void StartBugFix()
         {
@@ -109,7 +104,7 @@ namespace BugFixerGame
 
             isBeingFixed = true;
 
-            // 立即停用Bug效果
+            // 并即停用Bug效果
             DeactivateBug();
 
             // 显示正确物体并播放动画
@@ -168,7 +163,7 @@ namespace BugFixerGame
             // 触发修复完成事件
             OnBugFixed?.Invoke(this);
 
-            // 销毁Bug物体（延迟销毁以确保事件处理完成）
+            // 销毁Bug物体（或者销毁它和相关事件处理完成）
             StartCoroutine(DestroyBugObjectDelayed());
         }
 
@@ -185,15 +180,15 @@ namespace BugFixerGame
 
         #endregion
 
-        #region 点击检测系统
+        #region 点击检测相关
 
-        // 由PlayerController调用的点击方法
+        // 由Player调用的点击方法（长按2秒后才会调用）
         public void OnClickedByPlayer()
         {
             // 只有当Bug激活且没有正在修复时才处理点击
             if (!isBugActive || isBeingFixed) return;
 
-            Debug.Log($"玩家点击了Bug物体: {gameObject.name}");
+            Debug.Log($"玩家长按2秒完成，开始修复Bug物体: {gameObject.name}");
 
             // 触发点击事件
             OnBugClicked?.Invoke(this);
@@ -202,59 +197,7 @@ namespace BugFixerGame
             StartBugFix();
         }
 
-        private void HandleClickDetection()
-        {
-            // 这个方法现在由PlayerController处理，保留作为备用
-            // 只有当Bug激活且启用点击修复时才检测点击
-            if (!isBugActive || !enableClickToFix || isBeingFixed) return;
-
-            if (Input.GetMouseButtonDown(0)) // 左键点击
-            {
-                CheckMouseClick();
-            }
-        }
-
-        private void CheckMouseClick()
-        {
-            Vector3 mousePosition = Input.mousePosition;
-            Ray ray = Camera.main.ScreenPointToRay(mousePosition);
-
-            // 2D点击检测
-            if (clickCollider2D != null)
-            {
-                Vector2 worldPoint = Camera.main.ScreenToWorldPoint(mousePosition);
-                if (clickCollider2D.OverlapPoint(worldPoint))
-                {
-                    OnClickDetected();
-                    return;
-                }
-            }
-
-            // 3D点击检测
-            if (clickCollider3D != null)
-            {
-                RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, Mathf.Infinity, clickLayerMask))
-                {
-                    if (hit.collider == clickCollider3D)
-                    {
-                        OnClickDetected();
-                        return;
-                    }
-                }
-            }
-        }
-
-        private void OnClickDetected()
-        {
-            Debug.Log($"Bug物体被直接点击: {gameObject.name}");
-
-            // 触发点击事件
-            OnBugClicked?.Invoke(this);
-
-            // 开始修复Bug
-            StartBugFix();
-        }
+        // 已经由Player系统管理的点击检测代码，现在主要由Player处理交互
 
         #endregion
 
@@ -266,27 +209,6 @@ namespace BugFixerGame
             spriteRenderer = GetComponent<SpriteRenderer>();
             objectCollider2D = GetComponent<Collider2D>();
             objectCollider3D = GetComponent<Collider>();
-
-            // 点击检测组件（可能与碰撞检测组件相同）
-            clickCollider2D = objectCollider2D;
-            clickCollider3D = objectCollider3D;
-
-            // 如果没有碰撞体，尝试添加一个用于点击检测
-            if (clickCollider2D == null && clickCollider3D == null)
-            {
-                if (spriteRenderer != null)
-                {
-                    // 2D物体添加BoxCollider2D
-                    clickCollider2D = gameObject.AddComponent<BoxCollider2D>();
-                    clickCollider2D.isTrigger = true;
-                }
-                else if (objectRenderer != null)
-                {
-                    // 3D物体添加BoxCollider
-                    clickCollider3D = gameObject.AddComponent<BoxCollider>();
-                    clickCollider3D.isTrigger = true;
-                }
-            }
         }
 
         private void InitializeCorrectObject()
@@ -300,9 +222,6 @@ namespace BugFixerGame
 
         private void SaveOriginalState()
         {
-            // 保存原始位置
-            originalPosition = transform.position;
-
             // 保存原始颜色和材质
             if (spriteRenderer != null)
             {
@@ -316,9 +235,15 @@ namespace BugFixerGame
 
             // 保存碰撞体状态
             if (objectCollider2D != null)
+            {
                 originalCollider2DEnabled = objectCollider2D.enabled;
+                originalCollider2DIsTrigger = objectCollider2D.isTrigger;
+            }
             if (objectCollider3D != null)
+            {
                 originalCollider3DEnabled = objectCollider3D.enabled;
+                originalCollider3DIsTrigger = objectCollider3D.isTrigger;
+            }
         }
 
         #endregion
@@ -365,10 +290,6 @@ namespace BugFixerGame
                     ApplyObjectMissingEffect();
                     break;
 
-                case BugType.ObjectMoved:
-                    ApplyObjectMovedEffect();
-                    break;
-
                 case BugType.MaterialMissing:
                     ApplyMaterialMissingEffect();
                     break;
@@ -381,9 +302,7 @@ namespace BugFixerGame
                     ApplyCollisionMissingEffect();
                     break;
 
-                case BugType.ClippingBug:
-                    ApplyClippingBugEffect();
-                    break;
+                // 已经由ObjectMoved和ClippingBug，需要用户直接在Scene中摆放
 
                 default:
                     Debug.LogWarning($"未实现的Bug类型: {bugType}");
@@ -399,10 +318,6 @@ namespace BugFixerGame
                     RemoveObjectMissingEffect();
                     break;
 
-                case BugType.ObjectMoved:
-                    RemoveObjectMovedEffect();
-                    break;
-
                 case BugType.MaterialMissing:
                     RemoveMaterialMissingEffect();
                     break;
@@ -413,10 +328,6 @@ namespace BugFixerGame
 
                 case BugType.CollisionMissing:
                     RemoveCollisionMissingEffect();
-                    break;
-
-                case BugType.ClippingBug:
-                    RemoveClippingBugEffect();
                     break;
             }
 
@@ -434,22 +345,36 @@ namespace BugFixerGame
 
         private void ApplyObjectMissingEffect()
         {
-            gameObject.SetActive(false);
+            // 设置完全透明，但保持GameObject激活状态
+            SetAlpha(0f);
+
+            // 将碰撞体设为Trigger，这样可以被鼠标射线检测到，但不会产生物理碰撞
+            if (objectCollider2D != null)
+            {
+                objectCollider2D.isTrigger = true;
+            }
+            if (objectCollider3D != null)
+            {
+                objectCollider3D.isTrigger = true;
+            }
+
+            Debug.Log($"ObjectMissing效果：{gameObject.name} 设为透明且无碰撞，但可点击");
         }
 
         private void RemoveObjectMissingEffect()
         {
-            gameObject.SetActive(true);
-        }
+            // 恢复原始透明度
+            RestoreOriginalColor();
 
-        private void ApplyObjectMovedEffect()
-        {
-            transform.position = originalPosition + bugOffset;
-        }
-
-        private void RemoveObjectMovedEffect()
-        {
-            transform.position = originalPosition;
+            // 恢复碰撞体原始状态
+            if (objectCollider2D != null)
+            {
+                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
+            }
+            if (objectCollider3D != null)
+            {
+                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
+            }
         }
 
         private void ApplyMaterialMissingEffect()
@@ -473,6 +398,15 @@ namespace BugFixerGame
 
         private void ApplyFlickeringEffect()
         {
+            if (debugFlickering)
+                Debug.Log($"[闪烁调试] 开始应用闪烁效果到 {gameObject.name}");
+
+            // 检查并设置材质透明度支持
+            if (autoFixMaterialTransparency)
+            {
+                EnsureMaterialSupportsTransparency();
+            }
+
             if (flickerCoroutine != null)
                 StopCoroutine(flickerCoroutine);
 
@@ -485,6 +419,9 @@ namespace BugFixerGame
             {
                 StopCoroutine(flickerCoroutine);
                 flickerCoroutine = null;
+
+                if (debugFlickering)
+                    Debug.Log($"[闪烁调试] 停止闪烁效果");
             }
 
             // 恢复原始透明度
@@ -493,71 +430,195 @@ namespace BugFixerGame
 
         private void ApplyCollisionMissingEffect()
         {
-            // 禁用碰撞体
+            // 将碰撞体设为Trigger，这样可以被点击但没有物理碰撞
             if (objectCollider2D != null)
-                objectCollider2D.enabled = false;
+            {
+                objectCollider2D.isTrigger = true;
+            }
             if (objectCollider3D != null)
-                objectCollider3D.enabled = false;
+            {
+                objectCollider3D.isTrigger = true;
+            }
 
             // 降低透明度作为视觉提示
             SetAlpha(collisionMissingAlpha);
+
+            Debug.Log($"CollisionMissing效果：{gameObject.name} 碰撞设为Trigger，可点击但无物理碰撞");
         }
 
         private void RemoveCollisionMissingEffect()
         {
-            // 恢复碰撞体
+            // 恢复碰撞体原始状态
             if (objectCollider2D != null)
-                objectCollider2D.enabled = originalCollider2DEnabled;
+            {
+                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
+            }
             if (objectCollider3D != null)
-                objectCollider3D.enabled = originalCollider3DEnabled;
+            {
+                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
+            }
 
             // 恢复原始透明度
             RestoreOriginalColor();
         }
 
-        private void ApplyClippingBugEffect()
+        #endregion
+
+        #region 增强版闪烁功能
+
+        private void EnsureMaterialSupportsTransparency()
         {
-            // 让对象部分"陷入"地面或其他对象
-            transform.position = originalPosition + new Vector3(0, -0.5f, 0);
+            if (objectRenderer != null)
+            {
+                Material mat = objectRenderer.material;
+
+                if (debugFlickering)
+                    Debug.Log($"[材质检查] 检查材质: {mat.name}, Shader: {mat.shader.name}");
+
+                // 检查是否是Standard shader
+                if (mat.shader.name.Contains("Standard"))
+                {
+                    // 获取当前渲染模式
+                    float currentMode = mat.HasProperty("_Mode") ? mat.GetFloat("_Mode") : 0;
+
+                    if (debugFlickering)
+                        Debug.Log($"[材质检查] 当前渲染模式: {currentMode} (0=Opaque, 1=Cutout, 2=Fade, 3=Transparent)");
+
+                    // 如果不是透明模式，设置为透明
+                    if (currentMode < 2) // 0=Opaque, 1=Cutout都不支持透明度
+                    {
+                        SetMaterialToTransparent(mat);
+
+                        if (debugFlickering)
+                            Debug.Log($"[材质修复] 自动设置材质 {mat.name} 为透明模式");
+                    }
+                }
+                else if (mat.shader.name.Contains("Sprites"))
+                {
+                    // Sprite材质通常天然支持透明度
+                    if (debugFlickering)
+                        Debug.Log($"[材质检查] Sprite材质已支持透明度");
+                }
+                else
+                {
+                    if (debugFlickering)
+                        Debug.LogWarning($"[材质检查] 未知Shader类型: {mat.shader.name}，可能需要手动设置透明度支持");
+                }
+            }
+            else if (spriteRenderer != null)
+            {
+                if (debugFlickering)
+                    Debug.Log($"[材质检查] 使用SpriteRenderer，天然支持透明度");
+            }
+            else
+            {
+                if (debugFlickering)
+                    Debug.LogError($"[材质检查] 未找到Renderer或SpriteRenderer组件！");
+            }
         }
 
-        private void RemoveClippingBugEffect()
+        private void SetMaterialToTransparent(Material mat)
         {
-            transform.position = originalPosition;
+            // 设置为透明模式
+            mat.SetFloat("_Mode", 3); // 3 = Transparent mode
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.EnableKeyword("_ALPHABLEND_ON");
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = 3000;
+        }
+
+        private IEnumerator FlickerCoroutine()
+        {
+            bool isVisible = true;
+            float flickerCount = 0;
+            float startTime = Time.time;
+
+            if (debugFlickering)
+            {
+                Debug.Log($"[闪烁调试] 闪烁协程开始");
+                Debug.Log($"- 间隔: {flickerInterval}秒");
+                Debug.Log($"- 透明度范围: {flickerAlphaMin} - {flickerAlphaMax}");
+                Debug.Log($"- 初始透明度: {GetCurrentAlpha()}");
+            }
+
+            while (isBugActive)
+            {
+                isVisible = !isVisible;
+                float targetAlpha = isVisible ? flickerAlphaMax : flickerAlphaMin;
+
+                // 设置透明度
+                bool success = SetAlpha(targetAlpha);
+
+                flickerCount++;
+
+                // 只在前几次输出调试信息，避免刷屏
+                if (debugFlickering && flickerCount <= 5)
+                {
+                    Debug.Log($"[闪烁调试] 第{flickerCount}次闪烁 - 目标:{targetAlpha}, 设置成功:{success}, 实际:{GetCurrentAlpha()}");
+                }
+
+                // 每10秒输出一次状态信息
+                if (debugFlickering && (Time.time - startTime) > 10f && flickerCount % 20 == 0)
+                {
+                    Debug.Log($"[闪烁状态] 运行{Time.time - startTime:F1}秒, 闪烁{flickerCount}次, 当前透明度:{GetCurrentAlpha()}");
+                }
+
+                yield return new WaitForSeconds(flickerInterval);
+            }
+
+            if (debugFlickering)
+                Debug.Log($"[闪烁调试] 闪烁协程结束 - 总共闪烁{flickerCount}次，运行{Time.time - startTime:F1}秒");
         }
 
         #endregion
 
         #region 辅助方法
 
-        private IEnumerator FlickerCoroutine()
+        private bool SetAlpha(float alpha)
         {
-            bool isVisible = true;
+            bool success = false;
 
-            while (isBugActive)
-            {
-                isVisible = !isVisible;
-                float targetAlpha = isVisible ? flickerAlphaMax : flickerAlphaMin;
-                SetAlpha(targetAlpha);
-
-                yield return new WaitForSeconds(flickerInterval);
-            }
-        }
-
-        private void SetAlpha(float alpha)
-        {
             if (spriteRenderer != null)
             {
                 Color color = spriteRenderer.color;
                 color.a = alpha;
                 spriteRenderer.color = color;
+                success = true;
+
+                if (debugFlickering && Time.frameCount % 120 == 0) // 每2秒输出一次（假设60FPS）
+                    Debug.Log($"[透明度设置] SpriteRenderer设置为 {alpha}");
             }
             else if (objectRenderer != null)
             {
+                // 注意：修改material.color会创建材质实例
                 Color color = objectRenderer.material.color;
                 color.a = alpha;
                 objectRenderer.material.color = color;
+                success = true;
+
+                if (debugFlickering && Time.frameCount % 120 == 0) // 每2秒输出一次
+                    Debug.Log($"[透明度设置] Material设置为 {alpha}");
             }
+            else
+            {
+                if (debugFlickering)
+                    Debug.LogError($"[透明度设置] 未找到可设置透明度的Renderer组件！");
+            }
+
+            return success;
+        }
+
+        private float GetCurrentAlpha()
+        {
+            if (spriteRenderer != null)
+                return spriteRenderer.color.a;
+            else if (objectRenderer != null)
+                return objectRenderer.material.color.a;
+
+            return -1f; // 表示无法获取
         }
 
         private void RestoreOriginalColor()
@@ -565,10 +626,16 @@ namespace BugFixerGame
             if (spriteRenderer != null)
             {
                 spriteRenderer.color = originalColor;
+
+                if (debugFlickering)
+                    Debug.Log($"[透明度恢复] SpriteRenderer恢复到 {originalColor.a}");
             }
             else if (objectRenderer != null)
             {
                 objectRenderer.material.color = originalColor;
+
+                if (debugFlickering)
+                    Debug.Log($"[透明度恢复] Material恢复到 {originalColor.a}");
             }
         }
 
@@ -616,15 +683,9 @@ namespace BugFixerGame
             }
         }
 
-        // 运行时设置Bug参数
         public void SetFlickerInterval(float interval)
         {
             flickerInterval = interval;
-        }
-
-        public void SetBugOffset(Vector3 offset)
-        {
-            bugOffset = offset;
         }
 
         public void SetBuggyMaterial(Material material)
@@ -670,6 +731,129 @@ namespace BugFixerGame
         private void DebugToggleBug()
         {
             ToggleBug();
+        }
+
+        [ContextMenu("?? 测试闪烁效果")]
+        private void DebugTestFlickering()
+        {
+            if (Application.isPlaying)
+            {
+                debugFlickering = true;
+                Debug.Log("=== 开始闪烁效果测试 ===");
+
+                // 保存当前设置
+                BugType originalBugType = bugType;
+                bool originalBugActive = isBugActive;
+
+                // 设置为闪烁类型并激活
+                SetBugType(BugType.ObjectFlickering);
+                ActivateBug();
+
+                // 5秒后停止测试
+                StartCoroutine(StopTestAfterDelay(5f, originalBugType, originalBugActive));
+            }
+            else
+            {
+                Debug.Log("请在运行时测试闪烁效果");
+            }
+        }
+
+        private IEnumerator StopTestAfterDelay(float delay, BugType originalType, bool wasActive)
+        {
+            yield return new WaitForSeconds(delay);
+
+            Debug.Log("=== 闪烁效果测试结束 ===");
+
+            // 恢复原始设置
+            DeactivateBug();
+            SetBugType(originalType);
+
+            if (wasActive)
+                ActivateBug();
+        }
+
+        [ContextMenu("?? 检查材质设置")]
+        private void DebugCheckMaterial()
+        {
+            Debug.Log("=== 材质设置检查 ===");
+
+            if (objectRenderer != null)
+            {
+                Material mat = objectRenderer.sharedMaterial;
+                Debug.Log($"材质名称: {mat.name}");
+                Debug.Log($"Shader: {mat.shader.name}");
+
+                if (mat.HasProperty("_Mode"))
+                {
+                    float mode = mat.GetFloat("_Mode");
+                    string modeText = mode == 0 ? "Opaque(不透明)" :
+                                     mode == 1 ? "Cutout(裁剪)" :
+                                     mode == 2 ? "Fade(渐变)" :
+                                     mode == 3 ? "Transparent(透明)" : "未知";
+                    Debug.Log($"渲染模式: {mode} ({modeText})");
+                }
+
+                Debug.Log($"当前材质颜色: {mat.color}");
+                Debug.Log($"渲染队列: {mat.renderQueue}");
+
+                // 检查是否支持透明度
+                bool supportsTransparency = mat.renderQueue >= 3000 || mat.shader.name.Contains("Transparent") || mat.shader.name.Contains("Fade");
+                Debug.Log($"是否支持透明度: {supportsTransparency}");
+
+                if (!supportsTransparency)
+                {
+                    Debug.LogWarning("?? 材质可能不支持透明度！建议将Rendering Mode设置为Transparent");
+                }
+            }
+            else if (spriteRenderer != null)
+            {
+                Debug.Log($"使用SpriteRenderer: {spriteRenderer.sprite?.name}");
+                Debug.Log($"当前颜色: {spriteRenderer.color}");
+                Debug.Log("SpriteRenderer天然支持透明度 ?");
+            }
+            else
+            {
+                Debug.LogError("? 未找到Renderer或SpriteRenderer组件！");
+                Debug.LogError("请确保GameObject有MeshRenderer、SpriteRenderer或其他Renderer组件");
+            }
+
+            Debug.Log("=== 检查完成 ===");
+        }
+
+        [ContextMenu("?? 手动测试透明度")]
+        private void DebugTestTransparency()
+        {
+            if (Application.isPlaying)
+            {
+                StartCoroutine(TestTransparencyAnimation());
+            }
+            else
+            {
+                Debug.Log("请在运行时测试透明度");
+            }
+        }
+
+        private IEnumerator TestTransparencyAnimation()
+        {
+            Debug.Log("开始透明度测试动画...");
+
+            float duration = 3f;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = Mathf.PingPong(elapsed, 1f); // 0到1之间往返
+
+                SetAlpha(alpha);
+                Debug.Log($"测试透明度: {alpha:F2}");
+
+                yield return new WaitForSeconds(0.1f);
+            }
+
+            // 恢复原始透明度
+            RestoreOriginalColor();
+            Debug.Log("透明度测试完成");
         }
 
         #endregion
