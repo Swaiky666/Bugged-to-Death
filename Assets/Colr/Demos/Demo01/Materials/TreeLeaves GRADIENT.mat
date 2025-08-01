@@ -2,20 +2,29 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!21 &2100000
 Material:
-  serializedVersion: 6
+  serializedVersion: 8
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: TreeLeaves GRADIENT
   m_Shader: {fileID: 4800000, guid: e205ec5a2dab342e78812532c2f67fd5, type: 3}
-  m_ShaderKeywords: BACK_GRADIENT_ON COLR_1_2 FRONT_GRADIENT_ON LEFT_GRADIENT_ON RIGHT_GRADIENT_ON
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - BACK_GRADIENT_ON
+  - FRONT_GRADIENT_ON
+  - LEFT_GRADIENT_ON
+  - RIGHT_GRADIENT_ON
+  m_InvalidKeywords:
+  - COLR_1_2
   m_LightmapFlags: 5
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses: []
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -27,6 +36,7 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    m_Ints: []
     m_Floats:
     - _AmbientPower: 0
     - _FogHeight: 126.5
@@ -64,3 +74,4 @@ Material:
     - _RightTopColor: {r: 0.74257255, g: 0.42041522, b: 0.7941176, a: 0}
     - _RimColor: {r: 0, g: 1, b: 0, a: 0}
     - _TopColor: {r: 0.06666667, g: 0.32941177, b: 0.32941177, a: 0}
+  m_BuildTextureStacks: []

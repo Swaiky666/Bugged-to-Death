@@ -2,21 +2,30 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!21 &2100000
 Material:
-  serializedVersion: 6
+  serializedVersion: 8
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Fruit+HouseWindowFrame SOLID
   m_Shader: {fileID: 4800000, guid: 078b2a90d062e49c9903390f113619d3, type: 3}
-  m_ShaderKeywords: BACK_SOLID_ON COLR_1_2 FRONT_SOLID_ON LEFT_SOLID_ON LIGHTMAP_COLR_ON
-    RIGHT_SOLID_ON
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - BACK_SOLID_ON
+  - FRONT_SOLID_ON
+  - LEFT_SOLID_ON
+  - LIGHTMAP_COLR_ON
+  - RIGHT_SOLID_ON
+  m_InvalidKeywords:
+  - COLR_1_2
   m_LightmapFlags: 5
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses: []
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -28,6 +37,7 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    m_Ints: []
     m_Floats:
     - _AmbientPower: 0
     - _FogHeight: 126.5
@@ -63,3 +73,4 @@ Material:
     - _RightTopColor: {r: 0.18431373, g: 0.18431373, b: 0.18431373, a: 0}
     - _RimColor: {r: 0, g: 1, b: 0, a: 0}
     - _TopColor: {r: 0.15392517, g: 0.20980936, b: 0.28676468, a: 0}
+  m_BuildTextureStacks: []
