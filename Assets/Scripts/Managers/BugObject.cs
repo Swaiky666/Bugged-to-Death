@@ -1,88 +1,113 @@
-using System;
+ï»¿using System;
 using System.Collections;
 using UnityEngine;
 
 namespace BugFixerGame
 {
-    // Bug¶ÔÏóÀà - ¸ºÔğ¹ÜÀíĞèÒªBugĞ§¹ûµÄGameObjectÉÏ
+    // Bugå¯¹è±¡ç±» - è´Ÿè´£ç®¡ç†éœ€è¦Bugæ•ˆæœçš„GameObjectä¸Š
     public class BugObject : MonoBehaviour
     {
-        [Header("BugÅäÖÃ")]
+        [Header("Bugé…ç½®")]
         [SerializeField] private BugType bugType = BugType.None;
         [SerializeField] private bool startWithBugActive = false;
 
-        [Header("ÕıÈ·ÎïÌåÅäÖÃ")]
-        [SerializeField] private GameObject correctObject;          // ÕıÈ·µÄÎïÌå
-        [Tooltip("ĞŞ¸´BugºóÏÔÊ¾µÄÕıÈ·ÎïÌå")]
+        [Header("æ­£ç¡®ç‰©ä½“é…ç½®")]
+        [SerializeField] private GameObject correctObject;          // æ­£ç¡®çš„ç‰©ä½“
+        [Tooltip("ä¿®å¤Bugåæ˜¾ç¤ºçš„æ­£ç¡®ç‰©ä½“")]
         public GameObject CorrectObject
         {
             get { return correctObject; }
             set { correctObject = value; InitializeCorrectObject(); }
         }
-        [SerializeField] private float popupAnimationTime = 0.5f;  // µ¯³ö¶¯»­Ê±¼ä
+        [SerializeField] private float popupAnimationTime = 0.5f;  // å¼¹å‡ºåŠ¨ç”»æ—¶é—´
         [SerializeField]
         private AnimationCurve popupCurve = new AnimationCurve(
             new Keyframe(0, 0, 0, 0),
             new Keyframe(0.6f, 1.1f, 2, 2),
             new Keyframe(1, 1, 0, 0)
-        ); // µ¯³ö¶¯»­ÇúÏß
+        ); // å¼¹å‡ºåŠ¨ç”»æ›²çº¿
 
-        [Header("ÉÁË¸BugÉèÖÃ")]
+        [Header("é—ªçƒBugè®¾ç½®")]
         [SerializeField] private float flickerInterval = 0.5f;
         [SerializeField] private float flickerAlphaMin = 0.3f;
         [SerializeField] private float flickerAlphaMax = 1f;
 
-        [Header("Åö×²¶ªÊ§BugÉèÖÃ")]
+        [Header("ç¢°æ’ç¼ºå¤±Bugè®¾ç½®")]
         [SerializeField] private float collisionMissingAlpha = 0.8f;
 
-        [Header("²ÄÖÊBugÉèÖÃ")]
-        [SerializeField] private Material buggyMaterial; // ´¿É«²ÄÖÊµÈ
+        [Header("æè´¨Bugè®¾ç½®")]
+        [SerializeField] private Material buggyMaterial; // é”™è¯¯æè´¨ï¼ˆå¦‚ç´«è‰²æè´¨ï¼‰
+        [SerializeField] private bool hideMaterialCompletely = false; // æ˜¯å¦å®Œå…¨éšè—æè´¨
 
-        [Header("URPÉÁË¸ĞŞ¸´")]
-        [SerializeField] private bool useURPCompatibility = true; // ÆôÓÃURP¼æÈİÄ£Ê½
-        [SerializeField] private Material transparentMaterialPrefab; // Ô¤ÖÆµÄÍ¸Ã÷²ÄÖÊ£¨ÔÚInspectorÖĞ·ÖÅä£©
+        [Header("é”™è¯¯ç‰©ä½“Bugè®¾ç½®")]
+        [SerializeField] private GameObject wrongObject; // é”™è¯¯çš„æ›¿ä»£ç‰©ä½“
 
-        [Header("ÉÁË¸Bugµ÷ÊÔºÍĞŞ¸´")]
+        [Header("ç¼ºå¤±ç‰©ä½“Bugè®¾ç½®")]
+        [SerializeField] private bool hideObjectCompletely = false; // æ˜¯å¦å®Œå…¨éšè—ç‰©ä½“
+        [SerializeField] private float missingObjectAlpha = 0f; // ç¼ºå¤±ç‰©ä½“çš„é€æ˜åº¦
+
+        [Header("éœ‡åŠ¨Bugè®¾ç½®")]
+        [SerializeField] private float shakeIntensity = 0.1f; // éœ‡åŠ¨å¼ºåº¦
+        [SerializeField] private float shakeSpeed = 10f; // éœ‡åŠ¨é¢‘ç‡
+        [SerializeField] private Vector3 shakeDirection = Vector3.one; // éœ‡åŠ¨æ–¹å‘
+
+        [Header("ä½ç§»/ç©¿æ¨¡Bugè®¾ç½®")]
+        [SerializeField] private Vector3 wrongPosition = Vector3.zero; // é”™è¯¯ä½ç½®åç§»
+        [SerializeField] private Vector3 wrongRotation = Vector3.zero; // é”™è¯¯æ—‹è½¬
+        [SerializeField] private Vector3 wrongScale = Vector3.one; // é”™è¯¯ç¼©æ”¾
+        [SerializeField] private bool enableClippingMode = false; // å¯ç”¨ç©¿æ¨¡æ¨¡å¼
+        [SerializeField] private float clippingOffset = -0.5f; // ç©¿æ¨¡åç§»é‡
+
+        [Header("URPé—ªçƒä¿®å¤")]
+        [SerializeField] private bool useURPCompatibility = true; // å¯ç”¨URPå…¼å®¹æ¨¡å¼
+        [SerializeField] private Material transparentMaterialPrefab; // é¢„åˆ¶çš„é€æ˜æè´¨
+
+        [Header("è°ƒè¯•è®¾ç½®")]
         [SerializeField] private bool debugFlickering = true;
-        [SerializeField] private bool autoFixMaterialTransparency = true; // ×Ô¶¯ĞŞ¸´²ÄÖÊÍ¸Ã÷¶ÈÉèÖÃ
+        [SerializeField] private bool autoFixMaterialTransparency = true;
+        [SerializeField] private bool showDebugInfo = false;
 
-        // ×é¼ş»º´æ
+        // ç»„ä»¶ç¼“å­˜
         private Renderer objectRenderer;
         private SpriteRenderer spriteRenderer;
         private Collider2D objectCollider2D;
         private Collider objectCollider3D;
 
-        // Ô­Ê¼×´Ì¬±£´æ
+        // åŸå§‹çŠ¶æ€ä¿å­˜
         private Color originalColor;
         private Material originalMaterial;
         private bool originalCollider2DEnabled;
         private bool originalCollider3DEnabled;
         private bool originalCollider2DIsTrigger;
         private bool originalCollider3DIsTrigger;
+        private Vector3 originalPosition;
+        private Vector3 originalRotation;
+        private Vector3 originalScale;
 
-        // µ±Ç°×´Ì¬
+        // å½“å‰çŠ¶æ€
         private bool isBugActive = false;
-        private bool isBeingFixed = false;  // ÊÇ·ñÕıÔÚĞŞ¸´ÖĞ
+        private bool isBeingFixed = false;
         private Coroutine flickerCoroutine;
+        private Coroutine shakeCoroutine;
         private Coroutine popupCoroutine;
 
-        // ÌØĞ§¶ÔÏó
+        // æ˜¾ç¤ºç›¸å…³
+        private GameObject spawnedWrongObject;
         private GameObject spawnedEffect;
 
-        // URP²ÄÖÊÏà¹Ø³£Á¿
+        // URPæè´¨ç›¸å…³å¸¸é‡
         private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
         private static readonly int SurfaceTypeProperty = Shader.PropertyToID("_Surface");
         private static readonly int BlendModeProperty = Shader.PropertyToID("_Blend");
-        private static readonly int AlphaClipProperty = Shader.PropertyToID("_AlphaClip");
         private static readonly int SrcBlendProperty = Shader.PropertyToID("_SrcBlend");
         private static readonly int DstBlendProperty = Shader.PropertyToID("_DstBlend");
         private static readonly int ZWriteProperty = Shader.PropertyToID("_ZWrite");
 
-        // ÊÂ¼ş
-        public static event Action<BugObject> OnBugClicked;         // Bug±»µã»÷
-        public static event Action<BugObject> OnBugFixed;           // Bug±»ĞŞ¸´Íê³É
+        // äº‹ä»¶
+        public static event Action<BugObject> OnBugClicked;
+        public static event Action<BugObject> OnBugFixed;
 
-        #region UnityÉúÃüÖÜÆÚ
+        #region Unityç”Ÿå‘½å‘¨æœŸ
 
         private void Awake()
         {
@@ -98,8 +123,7 @@ namespace BugFixerGame
 
         private void Update()
         {
-            // ÒÑ¾­ÓÉPlayerÏµÍ³¹ÜÀíµã»÷¼ì²â£¬ÏÖÔÚÖ÷ÒªÓÉPlayer´¦Àí
-            // HandleClickDetection(); // ×¢ÊÍµôÕâĞĞ
+            // å·²ç»ç”±Playerç³»ç»Ÿç®¡ç†ç‚¹å‡»æ£€æµ‹
         }
 
         private void OnDestroy()
@@ -109,25 +133,21 @@ namespace BugFixerGame
 
         #endregion
 
-        #region BugĞŞ¸´Ïà¹Ø
+        #region Bugä¿®å¤ç›¸å…³
 
         private void StartBugFix()
         {
             if (isBeingFixed) return;
 
             isBeingFixed = true;
-
-            // ²¢¼´Í£ÓÃBugĞ§¹û
             DeactivateBug();
 
-            // ÏÔÊ¾ÕıÈ·ÎïÌå²¢²¥·Å¶¯»­
             if (correctObject != null)
             {
                 ShowCorrectObject();
             }
             else
             {
-                // Èç¹ûÃ»ÓĞÕıÈ·ÎïÌå£¬Ö±½ÓÍê³ÉĞŞ¸´
                 CompleteBugFix();
             }
         }
@@ -136,7 +156,6 @@ namespace BugFixerGame
         {
             correctObject.SetActive(true);
 
-            // ²¥·Åµ¯³ö¶¯»­
             if (popupCoroutine != null)
                 StopCoroutine(popupCoroutine);
 
@@ -147,7 +166,6 @@ namespace BugFixerGame
         {
             Vector3 originalScale = correctObject.transform.localScale;
             correctObject.transform.localScale = Vector3.zero;
-
             float elapsedTime = 0f;
 
             while (elapsedTime < popupAnimationTime)
@@ -155,36 +173,25 @@ namespace BugFixerGame
                 elapsedTime += Time.deltaTime;
                 float progress = elapsedTime / popupAnimationTime;
                 float curveValue = popupCurve.Evaluate(progress);
-
                 correctObject.transform.localScale = originalScale * curveValue;
-
                 yield return null;
             }
 
             correctObject.transform.localScale = originalScale;
-
-            // ¶¯»­Íê³Éºó£¬µÈ´ıÒ»¶ÎÊ±¼äÔÙÍê³ÉĞŞ¸´
             yield return new WaitForSeconds(0.5f);
-
             CompleteBugFix();
         }
 
         private void CompleteBugFix()
         {
-            Debug.Log($"BugĞŞ¸´Íê³É: {gameObject.name}");
-
-            // ´¥·¢ĞŞ¸´Íê³ÉÊÂ¼ş
+            Debug.Log($"Bugä¿®å¤å®Œæˆ: {gameObject.name}");
             OnBugFixed?.Invoke(this);
-
-            // Ïú»ÙBugÎïÌå£¨»òÕßÏú»ÙËüºÍÏà¹ØÊÂ¼ş´¦ÀíÍê³É£©
             StartCoroutine(DestroyBugObjectDelayed());
         }
 
         private IEnumerator DestroyBugObjectDelayed()
         {
             yield return new WaitForEndOfFrame();
-
-            // Ïú»ÙÕâ¸öBugÎïÌå
             if (gameObject != null)
             {
                 Destroy(gameObject);
@@ -193,28 +200,20 @@ namespace BugFixerGame
 
         #endregion
 
-        #region µã»÷¼ì²âÏà¹Ø
+        #region ç‚¹å‡»æ£€æµ‹ç›¸å…³
 
-        // ÓÉPlayerµ÷ÓÃµÄµã»÷·½·¨£¨³¤°´2Ãëºó²Å»áµ÷ÓÃ£©
         public void OnClickedByPlayer()
         {
-            // Ö»ÓĞµ±Bug¼¤»îÇÒÃ»ÓĞÕıÔÚĞŞ¸´Ê±²Å´¦Àíµã»÷
             if (!isBugActive || isBeingFixed) return;
 
-            Debug.Log($"Íæ¼Ò³¤°´2ÃëÍê³É£¬¿ªÊ¼ĞŞ¸´BugÎïÌå: {gameObject.name}");
-
-            // ´¥·¢µã»÷ÊÂ¼ş
+            Debug.Log($"ç©å®¶é•¿æŒ‰å®Œæˆï¼Œå¼€å§‹ä¿®å¤Bug: {gameObject.name} ({bugType})");
             OnBugClicked?.Invoke(this);
-
-            // ¿ªÊ¼ĞŞ¸´Bug
             StartBugFix();
         }
 
-        // ÒÑ¾­ÓÉPlayerÏµÍ³¹ÜÀíµÄµã»÷¼ì²â´úÂë£¬ÏÖÔÚÖ÷ÒªÓÉPlayer´¦Àí½»»¥
-
         #endregion
 
-        #region ³õÊ¼»¯
+        #region åˆå§‹åŒ–
 
         private void CacheComponents()
         {
@@ -226,7 +225,6 @@ namespace BugFixerGame
 
         private void InitializeCorrectObject()
         {
-            // È·±£ÕıÈ·ÎïÌåÔÚ¿ªÊ¼Ê±ÊÇÒş²ØµÄ
             if (correctObject != null)
             {
                 correctObject.SetActive(false);
@@ -235,7 +233,7 @@ namespace BugFixerGame
 
         private void SaveOriginalState()
         {
-            // ±£´æÔ­Ê¼ÑÕÉ«ºÍ²ÄÖÊ
+            // ä¿å­˜é¢œè‰²å’Œæè´¨
             if (spriteRenderer != null)
             {
                 originalColor = spriteRenderer.color;
@@ -246,7 +244,7 @@ namespace BugFixerGame
                 originalMaterial = objectRenderer.material;
             }
 
-            // ±£´æÅö×²Ìå×´Ì¬
+            // ä¿å­˜ç¢°æ’ä½“çŠ¶æ€
             if (objectCollider2D != null)
             {
                 originalCollider2DEnabled = objectCollider2D.enabled;
@@ -257,11 +255,16 @@ namespace BugFixerGame
                 originalCollider3DEnabled = objectCollider3D.enabled;
                 originalCollider3DIsTrigger = objectCollider3D.isTrigger;
             }
+
+            // ä¿å­˜å˜æ¢çŠ¶æ€
+            originalPosition = transform.localPosition;
+            originalRotation = transform.localEulerAngles;
+            originalScale = transform.localScale;
         }
 
         #endregion
 
-        #region Bug¿ØÖÆ
+        #region Bugæ§åˆ¶
 
         public void ActivateBug()
         {
@@ -269,8 +272,7 @@ namespace BugFixerGame
 
             isBugActive = true;
             ApplyBugEffect();
-
-            Debug.Log($"¼¤»îBugĞ§¹û: {bugType} on {gameObject.name}");
+            Debug.Log($"æ¿€æ´»Bugæ•ˆæœ: {bugType} on {gameObject.name}");
         }
 
         public void DeactivateBug()
@@ -279,8 +281,7 @@ namespace BugFixerGame
 
             isBugActive = false;
             RemoveBugEffect();
-
-            Debug.Log($"Í£ÓÃBugĞ§¹û: {bugType} on {gameObject.name}");
+            Debug.Log($"åœç”¨Bugæ•ˆæœ: {bugType} on {gameObject.name}");
         }
 
         public void ToggleBug()
@@ -293,20 +294,12 @@ namespace BugFixerGame
 
         #endregion
 
-        #region BugĞ§¹ûÊµÏÖ
+        #region Bugæ•ˆæœå®ç°
 
         private void ApplyBugEffect()
         {
             switch (bugType)
             {
-                case BugType.ObjectMissing:
-                    ApplyObjectMissingEffect();
-                    break;
-
-                case BugType.MaterialMissing:
-                    ApplyMaterialMissingEffect();
-                    break;
-
                 case BugType.ObjectFlickering:
                     ApplyFlickeringEffect();
                     break;
@@ -315,10 +308,28 @@ namespace BugFixerGame
                     ApplyCollisionMissingEffect();
                     break;
 
-                // ÒÑ¾­ÓÉObjectMovedºÍClippingBug£¬ĞèÒªÓÃ»§Ö±½ÓÔÚSceneÖĞ°Ú·Å
+                case BugType.WrongOrMissingMaterial:
+                    ApplyWrongOrMissingMaterialEffect();
+                    break;
+
+                case BugType.WrongObject:
+                    ApplyWrongObjectEffect();
+                    break;
+
+                case BugType.MissingObject:
+                    ApplyMissingObjectEffect();
+                    break;
+
+                case BugType.ObjectShaking:
+                    ApplyObjectShakingEffect();
+                    break;
+
+                case BugType.ObjectMovedOrClipping:
+                    ApplyObjectMovedOrClippingEffect();
+                    break;
 
                 default:
-                    Debug.LogWarning($"Î´ÊµÏÖµÄBugÀàĞÍ: {bugType}");
+                    Debug.LogWarning($"æœªå®ç°çš„Bugç±»å‹: {bugType}");
                     break;
             }
         }
@@ -327,14 +338,6 @@ namespace BugFixerGame
         {
             switch (bugType)
             {
-                case BugType.ObjectMissing:
-                    RemoveObjectMissingEffect();
-                    break;
-
-                case BugType.MaterialMissing:
-                    RemoveMaterialMissingEffect();
-                    break;
-
                 case BugType.ObjectFlickering:
                     RemoveFlickeringEffect();
                     break;
@@ -342,9 +345,34 @@ namespace BugFixerGame
                 case BugType.CollisionMissing:
                     RemoveCollisionMissingEffect();
                     break;
+
+                case BugType.WrongOrMissingMaterial:
+                    RemoveWrongOrMissingMaterialEffect();
+                    break;
+
+                case BugType.WrongObject:
+                    RemoveWrongObjectEffect();
+                    break;
+
+                case BugType.MissingObject:
+                    RemoveMissingObjectEffect();
+                    break;
+
+                case BugType.ObjectShaking:
+                    RemoveObjectShakingEffect();
+                    break;
+
+                case BugType.ObjectMovedOrClipping:
+                    RemoveObjectMovedOrClippingEffect();
+                    break;
             }
 
-            // ÇåÀíÉú³ÉµÄÌØĞ§
+            // æ¸…ç†ç”Ÿæˆçš„å¯¹è±¡å’Œç‰¹æ•ˆ
+            if (spawnedWrongObject != null)
+            {
+                DestroyImmediate(spawnedWrongObject);
+                spawnedWrongObject = null;
+            }
             if (spawnedEffect != null)
             {
                 DestroyImmediate(spawnedEffect);
@@ -354,112 +382,20 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ¾ßÌåBugĞ§¹ûÊµÏÖ
+        #region å…·ä½“Bugæ•ˆæœå®ç°
 
-        private void ApplyObjectMissingEffect()
-        {
-            // ÉèÖÃÍêÈ«Í¸Ã÷£¬µ«±£³ÖGameObject¼¤»î×´Ì¬
-            SetAlpha(0f);
-
-            // ½«Åö×²ÌåÉèÎªTrigger£¬ÕâÑù¿ÉÒÔ±»Êó±êÉäÏß¼ì²âµ½£¬µ«²»»á²úÉúÎïÀíÅö×²
-            if (objectCollider2D != null)
-            {
-                objectCollider2D.isTrigger = true;
-            }
-            if (objectCollider3D != null)
-            {
-                objectCollider3D.isTrigger = true;
-            }
-
-            Debug.Log($"ObjectMissingĞ§¹û£º{gameObject.name} ÉèÎªÍ¸Ã÷ÇÒÎŞÅö×²£¬µ«¿Éµã»÷");
-        }
-
-        private void RemoveObjectMissingEffect()
-        {
-            // »Ö¸´Ô­Ê¼Í¸Ã÷¶È
-            RestoreOriginalColor();
-
-            // »Ö¸´Åö×²ÌåÔ­Ê¼×´Ì¬
-            if (objectCollider2D != null)
-            {
-                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
-            }
-            if (objectCollider3D != null)
-            {
-                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
-            }
-        }
-
-        private void ApplyMaterialMissingEffect()
-        {
-            if (buggyMaterial != null)
-            {
-                if (objectRenderer != null)
-                {
-                    objectRenderer.material = buggyMaterial;
-                }
-            }
-        }
-
-        private void RemoveMaterialMissingEffect()
-        {
-            if (originalMaterial != null && objectRenderer != null)
-            {
-                objectRenderer.material = originalMaterial;
-            }
-        }
-
-        private void ApplyCollisionMissingEffect()
-        {
-            // ½«Åö×²ÌåÉèÎªTrigger£¬ÕâÑù¿ÉÒÔ±»µã»÷µ«Ã»ÓĞÎïÀíÅö×²
-            if (objectCollider2D != null)
-            {
-                objectCollider2D.isTrigger = true;
-            }
-            if (objectCollider3D != null)
-            {
-                objectCollider3D.isTrigger = true;
-            }
-
-            // ½µµÍÍ¸Ã÷¶È×÷ÎªÊÓ¾õÌáÊ¾
-            SetAlpha(collisionMissingAlpha);
-
-            Debug.Log($"CollisionMissingĞ§¹û£º{gameObject.name} Åö×²ÉèÎªTrigger£¬¿Éµã»÷µ«ÎŞÎïÀíÅö×²");
-        }
-
-        private void RemoveCollisionMissingEffect()
-        {
-            // »Ö¸´Åö×²ÌåÔ­Ê¼×´Ì¬
-            if (objectCollider2D != null)
-            {
-                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
-            }
-            if (objectCollider3D != null)
-            {
-                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
-            }
-
-            // »Ö¸´Ô­Ê¼Í¸Ã÷¶È
-            RestoreOriginalColor();
-        }
-
-        #endregion
-
-        #region URP¼æÈİµÄÉÁË¸¹¦ÄÜ
-
+        // 1. ç‰©ä½“é—ªçƒ
         private void ApplyFlickeringEffect()
         {
             if (debugFlickering)
-                Debug.Log($"[URPÉÁË¸] ¿ªÊ¼Ó¦ÓÃÉÁË¸Ğ§¹ûµ½ {gameObject.name}");
+                Debug.Log($"[é—ªçƒ] å¼€å§‹åº”ç”¨é—ªçƒæ•ˆæœåˆ° {gameObject.name}");
 
-            // URP¼æÈİĞÔ´¦Àí
             if (useURPCompatibility)
             {
                 SetupURPTransparency();
             }
             else
             {
-                // ´«Í³·½Ê½£¨¿ÉÄÜÔÚURPÖĞ²»¹¤×÷£©
                 EnsureMaterialSupportsTransparency();
             }
 
@@ -475,70 +411,271 @@ namespace BugFixerGame
             {
                 StopCoroutine(flickerCoroutine);
                 flickerCoroutine = null;
-
-                if (debugFlickering)
-                    Debug.Log($"[URPÉÁË¸] Í£Ö¹ÉÁË¸Ğ§¹û");
             }
-
-            // »Ö¸´Ô­Ê¼Í¸Ã÷¶È
             RestoreOriginalColor();
         }
+
+        // 2. ç¢°æ’ç¼ºå¤±
+        private void ApplyCollisionMissingEffect()
+        {
+            if (objectCollider2D != null)
+            {
+                objectCollider2D.isTrigger = true;
+            }
+            if (objectCollider3D != null)
+            {
+                objectCollider3D.isTrigger = true;
+            }
+
+            SetAlpha(collisionMissingAlpha);
+            Debug.Log($"CollisionMissingæ•ˆæœï¼š{gameObject.name} ç¢°æ’è®¾ä¸ºTrigger");
+        }
+
+        private void RemoveCollisionMissingEffect()
+        {
+            if (objectCollider2D != null)
+            {
+                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
+            }
+            if (objectCollider3D != null)
+            {
+                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
+            }
+            RestoreOriginalColor();
+        }
+
+        // 3. é”™è¯¯æˆ–ç¼ºå¤±æè´¨
+        private void ApplyWrongOrMissingMaterialEffect()
+        {
+            if (hideMaterialCompletely)
+            {
+                // å®Œå…¨éšè—æè´¨ï¼ˆè®¾ä¸ºé€æ˜ï¼‰
+                SetAlpha(0f);
+                Debug.Log($"MaterialMissingæ•ˆæœï¼š{gameObject.name} æè´¨å®Œå…¨éšè—");
+            }
+            else if (buggyMaterial != null)
+            {
+                // åº”ç”¨é”™è¯¯æè´¨
+                if (objectRenderer != null)
+                {
+                    objectRenderer.material = buggyMaterial;
+                }
+                Debug.Log($"WrongMaterialæ•ˆæœï¼š{gameObject.name} åº”ç”¨é”™è¯¯æè´¨");
+            }
+            else
+            {
+                // é»˜è®¤ï¼šè®¾ç½®ä¸ºåŠé€æ˜æç¤ºç¼ºå¤±
+                SetAlpha(0.3f);
+                Debug.Log($"MaterialMissingæ•ˆæœï¼š{gameObject.name} æè´¨åŠé€æ˜");
+            }
+        }
+
+        private void RemoveWrongOrMissingMaterialEffect()
+        {
+            if (originalMaterial != null && objectRenderer != null)
+            {
+                objectRenderer.material = originalMaterial;
+            }
+            RestoreOriginalColor();
+        }
+
+        // 4. é”™è¯¯ç‰©ä½“
+        private void ApplyWrongObjectEffect()
+        {
+            if (wrongObject != null)
+            {
+                // æ˜¾ç¤ºé”™è¯¯ç‰©ä½“
+                spawnedWrongObject = Instantiate(wrongObject, transform.position, transform.rotation, transform.parent);
+                // éšè—åŸç‰©ä½“
+                SetAlpha(0f);
+                SetCollidersAsTrigger(true);
+                Debug.Log($"WrongObjectæ•ˆæœï¼š{gameObject.name} æ˜¾ç¤ºé”™è¯¯ç‰©ä½“ {wrongObject.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"WrongObjectæ•ˆæœï¼š{gameObject.name} æ²¡æœ‰è®¾ç½®é”™è¯¯ç‰©ä½“ï¼");
+                // å¦‚æœæ²¡æœ‰è®¾ç½®é”™è¯¯ç‰©ä½“ï¼Œé»˜è®¤éšè—åŸç‰©ä½“
+                SetAlpha(0.1f);
+                SetCollidersAsTrigger(true);
+            }
+        }
+
+        private void RemoveWrongObjectEffect()
+        {
+            if (spawnedWrongObject != null)
+            {
+                DestroyImmediate(spawnedWrongObject);
+                spawnedWrongObject = null;
+            }
+
+            RestoreOriginalColor();
+            SetCollidersAsTrigger(false);
+        }
+
+        // 5. ç¼ºå¤±ç‰©ä½“
+        private void ApplyMissingObjectEffect()
+        {
+            if (hideObjectCompletely)
+            {
+                // å®Œå…¨éšè—ç‰©ä½“
+                SetAlpha(0f);
+                SetCollidersAsTrigger(true);
+                Debug.Log($"MissingObjectæ•ˆæœï¼š{gameObject.name} ç‰©ä½“å®Œå…¨éšè—");
+            }
+            else
+            {
+                // ä½¿ç”¨è‡ªå®šä¹‰é€æ˜åº¦
+                SetAlpha(missingObjectAlpha);
+                SetCollidersAsTrigger(true);
+                Debug.Log($"MissingObjectæ•ˆæœï¼š{gameObject.name} ç‰©ä½“é€æ˜åº¦è®¾ä¸º {missingObjectAlpha}");
+            }
+        }
+
+        private void RemoveMissingObjectEffect()
+        {
+            RestoreOriginalColor();
+            SetCollidersAsTrigger(false);
+        }
+
+        // 6. ç‰©ä½“éœ‡åŠ¨
+        private void ApplyObjectShakingEffect()
+        {
+            if (shakeCoroutine != null)
+                StopCoroutine(shakeCoroutine);
+
+            shakeCoroutine = StartCoroutine(ShakeCoroutine());
+            Debug.Log($"ObjectShakingæ•ˆæœï¼š{gameObject.name} å¼€å§‹éœ‡åŠ¨");
+        }
+
+        private void RemoveObjectShakingEffect()
+        {
+            if (shakeCoroutine != null)
+            {
+                StopCoroutine(shakeCoroutine);
+                shakeCoroutine = null;
+            }
+
+            // æ¢å¤åŸå§‹ä½ç½®
+            transform.localPosition = originalPosition;
+        }
+
+        // 7. ç‰©ä½“ä½ç§»æˆ–ç©¿æ¨¡
+        private void ApplyObjectMovedOrClippingEffect()
+        {
+            if (enableClippingMode)
+            {
+                // ç©¿æ¨¡æ•ˆæœï¼šå‘ä¸‹ç§»åŠ¨ä¸€å®šè·ç¦»
+                Vector3 clippingPosition = originalPosition + Vector3.down * clippingOffset;
+                transform.localPosition = clippingPosition;
+                Debug.Log($"Clippingæ•ˆæœï¼š{gameObject.name} ç©¿æ¨¡åˆ° {clippingPosition}");
+            }
+            else
+            {
+                // ä½ç§»æ•ˆæœï¼šåº”ç”¨é”™è¯¯çš„å˜æ¢
+                if (wrongPosition != Vector3.zero)
+                    transform.localPosition = originalPosition + wrongPosition;
+
+                if (wrongRotation != Vector3.zero)
+                    transform.localEulerAngles = originalRotation + wrongRotation;
+
+                if (wrongScale != Vector3.one)
+                    transform.localScale = Vector3.Scale(originalScale, wrongScale);
+
+                Debug.Log($"ObjectMovedæ•ˆæœï¼š{gameObject.name} ä½ç½®/æ—‹è½¬/ç¼©æ”¾æ”¹å˜");
+            }
+        }
+
+        private void RemoveObjectMovedOrClippingEffect()
+        {
+            // æ¢å¤åŸå§‹å˜æ¢
+            transform.localPosition = originalPosition;
+            transform.localEulerAngles = originalRotation;
+            transform.localScale = originalScale;
+        }
+
+        #endregion
+
+        #region éœ‡åŠ¨åç¨‹
+
+        private IEnumerator ShakeCoroutine()
+        {
+            while (isBugActive)
+            {
+                Vector3 randomOffset = new Vector3(
+                    UnityEngine.Random.Range(-shakeIntensity, shakeIntensity) * shakeDirection.x,
+                    UnityEngine.Random.Range(-shakeIntensity, shakeIntensity) * shakeDirection.y,
+                    UnityEngine.Random.Range(-shakeIntensity, shakeIntensity) * shakeDirection.z
+                );
+
+                transform.localPosition = originalPosition + randomOffset;
+                yield return new WaitForSeconds(1f / shakeSpeed);
+            }
+        }
+
+        #endregion
+
+        #region é—ªçƒåç¨‹
+
+        private IEnumerator FlickerCoroutine()
+        {
+            bool isVisible = true;
+            float flickerCount = 0;
+
+            if (debugFlickering)
+                Debug.Log($"[é—ªçƒ] åç¨‹å¼€å§‹ - é—´éš”:{flickerInterval}s");
+
+            while (isBugActive)
+            {
+                isVisible = !isVisible;
+                float targetAlpha = isVisible ? flickerAlphaMax : flickerAlphaMin;
+                SetAlpha(targetAlpha);
+
+                flickerCount++;
+                if (debugFlickering && flickerCount <= 3)
+                    Debug.Log($"[é—ªçƒ] ç¬¬{flickerCount}æ¬¡ - é€æ˜åº¦:{targetAlpha}");
+
+                yield return new WaitForSeconds(flickerInterval);
+            }
+        }
+
+        #endregion
+
+        #region URPå…¼å®¹åŠŸèƒ½
 
         private void SetupURPTransparency()
         {
             if (objectRenderer == null && spriteRenderer == null)
             {
-                Debug.LogError("[URPÉÁË¸] Î´ÕÒµ½Renderer×é¼ş£¡");
+                Debug.LogError("[URP] æœªæ‰¾åˆ°Rendererç»„ä»¶ï¼");
                 return;
             }
 
-            // ´¦ÀíSpriteRenderer£¨Í¨³£²»ĞèÒªÌØÊâ´¦Àí£©
             if (spriteRenderer != null)
             {
                 if (debugFlickering)
-                    Debug.Log("[URPÉÁË¸] Ê¹ÓÃSpriteRenderer£¬ÒÑÖ§³ÖÍ¸Ã÷¶È");
+                    Debug.Log("[URP] SpriteRendereræ”¯æŒé€æ˜åº¦");
                 return;
             }
 
-            // ´¦ÀíMeshRendererµÄURP²ÄÖÊ
             if (objectRenderer != null)
             {
                 Material currentMat = objectRenderer.material;
 
-                if (debugFlickering)
-                {
-                    Debug.Log($"[URPÉÁË¸] µ±Ç°²ÄÖÊ: {currentMat.name}");
-                    Debug.Log($"[URPÉÁË¸] µ±Ç°Shader: {currentMat.shader.name}");
-                }
-
-                // ¼ì²éÊÇ·ñÊÇURP Shader
                 if (IsURPShader(currentMat.shader))
                 {
                     SetupURPMaterialTransparency(currentMat);
                 }
+                else if (transparentMaterialPrefab != null)
+                {
+                    if (originalMaterial == null)
+                        originalMaterial = currentMat;
+                    objectRenderer.material = transparentMaterialPrefab;
+                    if (debugFlickering)
+                        Debug.Log("[URP] ä½¿ç”¨é¢„åˆ¶é€æ˜æè´¨");
+                }
                 else
                 {
-                    // Èç¹û²»ÊÇURP shader£¬³¢ÊÔÊ¹ÓÃÔ¤ÖÆÍ¸Ã÷²ÄÖÊ
-                    if (transparentMaterialPrefab != null)
-                    {
-                        if (debugFlickering)
-                            Debug.Log("[URPÉÁË¸] Ê¹ÓÃÔ¤ÖÆÍ¸Ã÷²ÄÖÊÌæ»»");
-
-                        // ±£´æÔ­Ê¼²ÄÖÊ
-                        if (originalMaterial == null)
-                            originalMaterial = currentMat;
-
-                        // Ó¦ÓÃÍ¸Ã÷²ÄÖÊ
-                        objectRenderer.material = transparentMaterialPrefab;
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[URPÉÁË¸] ²ÄÖÊ {currentMat.name} ²»ÊÇURP shaderÇÒÃ»ÓĞÔ¤ÖÆÍ¸Ã÷²ÄÖÊ£¡");
-                        Debug.LogWarning("[URPÉÁË¸] ÇëÔÚInspectorÖĞ·ÖÅäTransparent Material Prefab");
-
-                        // ³¢ÊÔ´«Í³·½Ê½×÷Îª±¸ÓÃ
-                        EnsureMaterialSupportsTransparency();
-                    }
+                    EnsureMaterialSupportsTransparency();
                 }
             }
         }
@@ -555,26 +692,14 @@ namespace BugFixerGame
 
         private void SetupURPMaterialTransparency(Material mat)
         {
-            if (debugFlickering)
-                Debug.Log("[URPÉÁË¸] ÉèÖÃURP²ÄÖÊÍ¸Ã÷¶ÈÖ§³Ö");
-
             try
             {
-                // ÉèÖÃSurface TypeÎªTransparent (1.0)
                 if (mat.HasProperty(SurfaceTypeProperty))
-                {
-                    mat.SetFloat(SurfaceTypeProperty, 1.0f); // 1 = Transparent
-                    if (debugFlickering)
-                        Debug.Log("[URPÉÁË¸] Surface TypeÉèÖÃÎªTransparent");
-                }
+                    mat.SetFloat(SurfaceTypeProperty, 1.0f); // Transparent
 
-                // ÉèÖÃBlend ModeÎªAlpha (0)
                 if (mat.HasProperty(BlendModeProperty))
-                {
-                    mat.SetFloat(BlendModeProperty, 0.0f); // 0 = Alpha
-                }
+                    mat.SetFloat(BlendModeProperty, 0.0f); // Alpha
 
-                // ÉèÖÃ»ìºÏ²ÎÊı
                 if (mat.HasProperty(SrcBlendProperty))
                     mat.SetFloat(SrcBlendProperty, (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
 
@@ -582,22 +707,18 @@ namespace BugFixerGame
                     mat.SetFloat(DstBlendProperty, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
 
                 if (mat.HasProperty(ZWriteProperty))
-                    mat.SetFloat(ZWriteProperty, 0.0f); // ¹Ø±ÕÉî¶ÈĞ´Èë
+                    mat.SetFloat(ZWriteProperty, 0.0f);
 
-                // ÆôÓÃÍ¸Ã÷¹Ø¼ü×Ö
                 mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 mat.EnableKeyword("_ALPHABLEND_ON");
-
-                // ÉèÖÃäÖÈ¾¶ÓÁĞ
                 mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 
                 if (debugFlickering)
-                    Debug.Log("[URPÉÁË¸] URPÍ¸Ã÷¶ÈÉèÖÃÍê³É");
+                    Debug.Log("[URP] æè´¨é€æ˜åº¦è®¾ç½®å®Œæˆ");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[URPÉÁË¸] ÉèÖÃURPÍ¸Ã÷¶ÈÊ±³ö´í: {e.Message}");
+                Debug.LogError($"[URP] è®¾ç½®é€æ˜åº¦å‡ºé”™: {e.Message}");
             }
         }
 
@@ -607,110 +728,30 @@ namespace BugFixerGame
             {
                 Material mat = objectRenderer.material;
 
-                if (debugFlickering)
-                    Debug.Log($"[²ÄÖÊ¼ì²é] ¼ì²é²ÄÖÊ: {mat.name}, Shader: {mat.shader.name}");
-
-                // ¼ì²éÊÇ·ñÊÇStandard shader
                 if (mat.shader.name.Contains("Standard"))
                 {
-                    // »ñÈ¡µ±Ç°äÖÈ¾Ä£Ê½
                     float currentMode = mat.HasProperty("_Mode") ? mat.GetFloat("_Mode") : 0;
-
-                    if (debugFlickering)
-                        Debug.Log($"[²ÄÖÊ¼ì²é] µ±Ç°äÖÈ¾Ä£Ê½: {currentMode} (0=Opaque, 1=Cutout, 2=Fade, 3=Transparent)");
-
-                    // Èç¹û²»ÊÇÍ¸Ã÷Ä£Ê½£¬ÉèÖÃÎªÍ¸Ã÷
-                    if (currentMode < 2) // 0=Opaque, 1=Cutout¶¼²»Ö§³ÖÍ¸Ã÷¶È
+                    if (currentMode < 2)
                     {
                         SetMaterialToTransparent(mat);
-
-                        if (debugFlickering)
-                            Debug.Log($"[²ÄÖÊĞŞ¸´] ×Ô¶¯ÉèÖÃ²ÄÖÊ {mat.name} ÎªÍ¸Ã÷Ä£Ê½");
                     }
                 }
-                else if (mat.shader.name.Contains("Sprites"))
-                {
-                    // Sprite²ÄÖÊÍ¨³£ÌìÈ»Ö§³ÖÍ¸Ã÷¶È
-                    if (debugFlickering)
-                        Debug.Log($"[²ÄÖÊ¼ì²é] Sprite²ÄÖÊÒÑÖ§³ÖÍ¸Ã÷¶È");
-                }
-                else
-                {
-                    if (debugFlickering)
-                        Debug.LogWarning($"[²ÄÖÊ¼ì²é] Î´ÖªShaderÀàĞÍ: {mat.shader.name}£¬¿ÉÄÜĞèÒªÊÖ¶¯ÉèÖÃÍ¸Ã÷¶ÈÖ§³Ö");
-                }
-            }
-            else if (spriteRenderer != null)
-            {
-                if (debugFlickering)
-                    Debug.Log($"[²ÄÖÊ¼ì²é] Ê¹ÓÃSpriteRenderer£¬ÌìÈ»Ö§³ÖÍ¸Ã÷¶È");
-            }
-            else
-            {
-                if (debugFlickering)
-                    Debug.LogError($"[²ÄÖÊ¼ì²é] Î´ÕÒµ½Renderer»òSpriteRenderer×é¼ş£¡");
             }
         }
 
         private void SetMaterialToTransparent(Material mat)
         {
-            // ÉèÖÃÎªÍ¸Ã÷Ä£Ê½£¨Built-in RP Standard shader£©
-            mat.SetFloat("_Mode", 3); // 3 = Transparent mode
+            mat.SetFloat("_Mode", 3); // Transparent
             mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             mat.SetInt("_ZWrite", 0);
-            mat.DisableKeyword("_ALPHATEST_ON");
             mat.EnableKeyword("_ALPHABLEND_ON");
-            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             mat.renderQueue = 3000;
-        }
-
-        private IEnumerator FlickerCoroutine()
-        {
-            bool isVisible = true;
-            float flickerCount = 0;
-            float startTime = Time.time;
-
-            if (debugFlickering)
-            {
-                Debug.Log($"[ÉÁË¸µ÷ÊÔ] ÉÁË¸Ğ­³Ì¿ªÊ¼");
-                Debug.Log($"- ¼ä¸ô: {flickerInterval}Ãë");
-                Debug.Log($"- Í¸Ã÷¶È·¶Î§: {flickerAlphaMin} - {flickerAlphaMax}");
-                Debug.Log($"- ³õÊ¼Í¸Ã÷¶È: {GetCurrentAlpha()}");
-            }
-
-            while (isBugActive)
-            {
-                isVisible = !isVisible;
-                float targetAlpha = isVisible ? flickerAlphaMax : flickerAlphaMin;
-
-                // ÉèÖÃÍ¸Ã÷¶È
-                bool success = SetAlpha(targetAlpha);
-
-                flickerCount++;
-
-                // Ö»ÔÚÇ°¼¸´ÎÊä³öµ÷ÊÔĞÅÏ¢£¬±ÜÃâË¢ÆÁ
-                if (debugFlickering && flickerCount <= 5)
-                {
-                    Debug.Log($"[ÉÁË¸µ÷ÊÔ] µÚ{flickerCount}´ÎÉÁË¸ - Ä¿±ê:{targetAlpha}, ÉèÖÃ³É¹¦:{success}, Êµ¼Ê:{GetCurrentAlpha()}");
-                }
-
-                // Ã¿10ÃëÊä³öÒ»´Î×´Ì¬ĞÅÏ¢
-                if (debugFlickering && (Time.time - startTime) > 10f && flickerCount % 20 == 0)
-                {
-                    Debug.Log($"[ÉÁË¸×´Ì¬] ÔËĞĞ{Time.time - startTime:F1}Ãë, ÉÁË¸{flickerCount}´Î, µ±Ç°Í¸Ã÷¶È:{GetCurrentAlpha()}");
-                }
-
-                yield return new WaitForSeconds(flickerInterval);
-            }
-
-            if (debugFlickering)
-                Debug.Log($"[ÉÁË¸µ÷ÊÔ] ÉÁË¸Ğ­³Ì½áÊø - ×Ü¹²ÉÁË¸{flickerCount}´Î£¬ÔËĞĞ{Time.time - startTime:F1}Ãë");
         }
 
         #endregion
 
-        #region ¸¨Öú·½·¨
+        #region è¾…åŠ©æ–¹æ³•
 
         private bool SetAlpha(float alpha)
         {
@@ -722,46 +763,25 @@ namespace BugFixerGame
                 color.a = alpha;
                 spriteRenderer.color = color;
                 success = true;
-
-                if (debugFlickering && Time.frameCount % 120 == 0) // Ã¿2ÃëÊä³öÒ»´Î£¨¼ÙÉè60FPS£©
-                    Debug.Log($"[Í¸Ã÷¶ÈÉèÖÃ] SpriteRendererÉèÖÃÎª {alpha}");
             }
             else if (objectRenderer != null)
             {
                 Material mat = objectRenderer.material;
 
-                // URPÊ¹ÓÃ_BaseColorÊôĞÔ
                 if (mat.HasProperty(BaseColorProperty))
                 {
                     Color color = mat.GetColor(BaseColorProperty);
                     color.a = alpha;
                     mat.SetColor(BaseColorProperty, color);
                     success = true;
-
-                    if (debugFlickering && Time.frameCount % 120 == 0)
-                        Debug.Log($"[Í¸Ã÷¶ÈÉèÖÃ] URP _BaseColorÍ¸Ã÷¶È: {alpha}");
                 }
-                // ±¸ÓÃ£º³¢ÊÔ´«Í³µÄcolorÊôĞÔ
                 else if (mat.HasProperty("_Color"))
                 {
                     Color color = mat.color;
                     color.a = alpha;
                     mat.color = color;
                     success = true;
-
-                    if (debugFlickering && Time.frameCount % 120 == 0)
-                        Debug.Log($"[Í¸Ã÷¶ÈÉèÖÃ] ´«Í³ColorÍ¸Ã÷¶È: {alpha}");
                 }
-                else
-                {
-                    if (debugFlickering)
-                        Debug.LogWarning("[Í¸Ã÷¶ÈÉèÖÃ] ²ÄÖÊÃ»ÓĞ_BaseColor»ò_ColorÊôĞÔ£¡");
-                }
-            }
-            else
-            {
-                if (debugFlickering)
-                    Debug.LogError($"[Í¸Ã÷¶ÈÉèÖÃ] Î´ÕÒµ½¿ÉÉèÖÃÍ¸Ã÷¶ÈµÄRenderer×é¼ş£¡");
             }
 
             return success;
@@ -779,8 +799,7 @@ namespace BugFixerGame
                 else if (mat.HasProperty("_Color"))
                     return mat.color.a;
             }
-
-            return -1f; // ±íÊ¾ÎŞ·¨»ñÈ¡
+            return -1f;
         }
 
         private void RestoreOriginalColor()
@@ -788,23 +807,16 @@ namespace BugFixerGame
             if (spriteRenderer != null)
             {
                 spriteRenderer.color = originalColor;
-
-                if (debugFlickering)
-                    Debug.Log($"[Í¸Ã÷¶È»Ö¸´] SpriteRenderer»Ö¸´µ½ {originalColor.a}");
             }
             else if (objectRenderer != null)
             {
-                // Èç¹ûÊ¹ÓÃÁËÔ¤ÖÆÍ¸Ã÷²ÄÖÊ£¬»Ö¸´Ô­Ê¼²ÄÖÊ
                 if (transparentMaterialPrefab != null && originalMaterial != null &&
                     objectRenderer.material == transparentMaterialPrefab)
                 {
                     objectRenderer.material = originalMaterial;
-                    if (debugFlickering)
-                        Debug.Log($"[Í¸Ã÷¶È»Ö¸´] ÒÑ»Ö¸´Ô­Ê¼²ÄÖÊ: {originalMaterial.name}");
                 }
                 else
                 {
-                    // »Ö¸´ÑÕÉ«
                     Material mat = objectRenderer.material;
                     if (mat.HasProperty(BaseColorProperty))
                     {
@@ -818,36 +830,30 @@ namespace BugFixerGame
                         color.a = originalColor.a;
                         mat.color = color;
                     }
-
-                    if (debugFlickering)
-                        Debug.Log($"[Í¸Ã÷¶È»Ö¸´] ²ÄÖÊÑÕÉ«ÒÑ»Ö¸´");
                 }
+            }
+        }
+
+        private void SetCollidersAsTrigger(bool asTrigger)
+        {
+            if (objectCollider2D != null)
+            {
+                objectCollider2D.isTrigger = asTrigger ? true : originalCollider2DIsTrigger;
+            }
+            if (objectCollider3D != null)
+            {
+                objectCollider3D.isTrigger = asTrigger ? true : originalCollider3DIsTrigger;
             }
         }
 
         #endregion
 
-        #region ¹«¹²½Ó¿Ú
+        #region å…¬å…±æ¥å£
 
-        public BugType GetBugType()
-        {
-            return bugType;
-        }
-
-        public bool IsBugActive()
-        {
-            return isBugActive;
-        }
-
-        public bool IsBeingFixed()
-        {
-            return isBeingFixed;
-        }
-
-        public GameObject GetCorrectObject()
-        {
-            return correctObject;
-        }
+        public BugType GetBugType() => bugType;
+        public bool IsBugActive() => isBugActive;
+        public bool IsBeingFixed() => isBeingFixed;
+        public GameObject GetCorrectObject() => correctObject;
 
         public void SetCorrectObject(GameObject obj)
         {
@@ -869,22 +875,12 @@ namespace BugFixerGame
             }
         }
 
-        public void SetFlickerInterval(float interval)
-        {
-            flickerInterval = interval;
-        }
-
-        public void SetBuggyMaterial(Material material)
-        {
-            buggyMaterial = material;
-        }
+        public void SetBuggyMaterial(Material material) => buggyMaterial = material;
+        public void SetWrongObject(GameObject obj) => wrongObject = obj;
 
         #endregion
 
-        #region µ÷ÊÔ¹¦ÄÜ
-
-        [Header("µ÷ÊÔ")]
-        [SerializeField] private bool showDebugInfo = false;
+        #region è°ƒè¯•åŠŸèƒ½
 
         private void OnGUI()
         {
@@ -894,192 +890,66 @@ namespace BugFixerGame
             if (screenPos.z > 0 && screenPos.x > 0 && screenPos.x < Screen.width && screenPos.y > 0 && screenPos.y < Screen.height)
             {
                 Vector2 guiPos = new Vector2(screenPos.x, Screen.height - screenPos.y);
-
-                GUI.Box(new Rect(guiPos.x - 50, guiPos.y - 30, 100, 60),
-                    $"{gameObject.name}\n{bugType}\n{(isBugActive ? "ON" : "OFF")}");
+                GUI.Box(new Rect(guiPos.x - 60, guiPos.y - 40, 120, 80),
+                    $"{gameObject.name}\n{bugType}\n{(isBugActive ? "ON" : "OFF")}\nAlpha: {GetCurrentAlpha():F2}");
             }
         }
 
-        // Inspector°´Å¥
-        [ContextMenu("¼¤»îBug")]
-        private void DebugActivateBug()
-        {
-            ActivateBug();
-        }
+        [ContextMenu("âœ… æ¿€æ´»Bug")]
+        private void DebugActivateBug() => ActivateBug();
 
-        [ContextMenu("Í£ÓÃBug")]
-        private void DebugDeactivateBug()
-        {
-            DeactivateBug();
-        }
+        [ContextMenu("âŒ åœç”¨Bug")]
+        private void DebugDeactivateBug() => DeactivateBug();
 
-        [ContextMenu("ÇĞ»»Bug")]
-        private void DebugToggleBug()
-        {
-            ToggleBug();
-        }
+        [ContextMenu("ğŸ”„ åˆ‡æ¢Bug")]
+        private void DebugToggleBug() => ToggleBug();
 
-        [ContextMenu("?? ²âÊÔÉÁË¸Ğ§¹û")]
-        private void DebugTestFlickering()
+        [ContextMenu("ğŸ”§ æµ‹è¯•å½“å‰Bugæ•ˆæœ")]
+        private void DebugTestCurrentBug()
         {
             if (Application.isPlaying)
             {
-                debugFlickering = true;
-                Debug.Log("=== ¿ªÊ¼ÉÁË¸Ğ§¹û²âÊÔ ===");
+                Debug.Log($"=== æµ‹è¯•Bugæ•ˆæœ: {bugType} ===");
+                BugType original = bugType;
+                bool wasActive = isBugActive;
 
-                // ±£´æµ±Ç°ÉèÖÃ
-                BugType originalBugType = bugType;
-                bool originalBugActive = isBugActive;
-
-                // ÉèÖÃÎªÉÁË¸ÀàĞÍ²¢¼¤»î
-                SetBugType(BugType.ObjectFlickering);
                 ActivateBug();
-
-                // 5ÃëºóÍ£Ö¹²âÊÔ
-                StartCoroutine(StopTestAfterDelay(5f, originalBugType, originalBugActive));
+                StartCoroutine(StopTestAfterDelay(5f, original, wasActive));
             }
             else
             {
-                Debug.Log("ÇëÔÚÔËĞĞÊ±²âÊÔÉÁË¸Ğ§¹û");
+                Debug.Log("è¯·åœ¨è¿è¡Œæ—¶æµ‹è¯•Bugæ•ˆæœ");
             }
         }
 
         private IEnumerator StopTestAfterDelay(float delay, BugType originalType, bool wasActive)
         {
             yield return new WaitForSeconds(delay);
+            Debug.Log($"=== Bugæ•ˆæœæµ‹è¯•ç»“æŸ: {bugType} ===");
 
-            Debug.Log("=== ÉÁË¸Ğ§¹û²âÊÔ½áÊø ===");
-
-            // »Ö¸´Ô­Ê¼ÉèÖÃ
             DeactivateBug();
-            SetBugType(originalType);
-
-            if (wasActive)
-                ActivateBug();
+            bugType = originalType;
+            if (wasActive) ActivateBug();
         }
 
-        [ContextMenu("?? ¼ì²éURP²ÄÖÊÉèÖÃ")]
-        private void DebugCheckURPMaterial()
+        [ContextMenu("ğŸ” æ£€æŸ¥ç»„ä»¶å’Œè®¾ç½®")]
+        private void DebugCheckComponents()
         {
-            Debug.Log("=== URP²ÄÖÊÉèÖÃ¼ì²é ===");
+            Debug.Log("=== BugObjectç»„ä»¶æ£€æŸ¥ ===");
+            Debug.Log($"Bugç±»å‹: {bugType}");
+            Debug.Log($"æ¿€æ´»çŠ¶æ€: {isBugActive}");
+            Debug.Log($"Renderer: {(objectRenderer ? objectRenderer.name : "æ— ")}");
+            Debug.Log($"SpriteRenderer: {(spriteRenderer ? spriteRenderer.name : "æ— ")}");
+            Debug.Log($"Collider2D: {(objectCollider2D ? objectCollider2D.name : "æ— ")}");
+            Debug.Log($"Collider3D: {(objectCollider3D ? objectCollider3D.name : "æ— ")}");
+            Debug.Log($"å½“å‰é€æ˜åº¦: {GetCurrentAlpha()}");
 
             if (objectRenderer != null)
             {
-                Material mat = objectRenderer.sharedMaterial;
-                Debug.Log($"²ÄÖÊÃû³Æ: {mat.name}");
-                Debug.Log($"Shader: {mat.shader.name}");
-                Debug.Log($"ÊÇ·ñURP Shader: {IsURPShader(mat.shader)}");
-
-                // ¼ì²éURPÌØÓĞÊôĞÔ
-                if (mat.HasProperty(SurfaceTypeProperty))
-                {
-                    float surfaceType = mat.GetFloat(SurfaceTypeProperty);
-                    string surfaceTypeText = surfaceType == 0 ? "Opaque(²»Í¸Ã÷)" : "Transparent(Í¸Ã÷)";
-                    Debug.Log($"Surface Type: {surfaceType} ({surfaceTypeText})");
-                }
-                else
-                {
-                    Debug.LogWarning("²ÄÖÊÃ»ÓĞ_SurfaceÊôĞÔ£¨¿ÉÄÜ²»ÊÇURP²ÄÖÊ£©");
-                }
-
-                if (mat.HasProperty(BaseColorProperty))
-                {
-                    Color baseColor = mat.GetColor(BaseColorProperty);
-                    Debug.Log($"Base Color: {baseColor}");
-                }
-                else if (mat.HasProperty("_Color"))
-                {
-                    Debug.Log($"Color: {mat.color}");
-                }
-                else
-                {
-                    Debug.LogWarning("²ÄÖÊÃ»ÓĞÑÕÉ«ÊôĞÔ£¡");
-                }
-
-                Debug.Log($"äÖÈ¾¶ÓÁĞ: {mat.renderQueue}");
-
-                // ¼ì²é¹Ø¼ü×Ö
-                if (mat.IsKeywordEnabled("_SURFACE_TYPE_TRANSPARENT"))
-                    Debug.Log("? _SURFACE_TYPE_TRANSPARENT ¹Ø¼ü×ÖÒÑÆôÓÃ");
-                else
-                    Debug.Log("? _SURFACE_TYPE_TRANSPARENT ¹Ø¼ü×ÖÎ´ÆôÓÃ");
-
+                Debug.Log($"æè´¨: {objectRenderer.material.name}");
+                Debug.Log($"Shader: {objectRenderer.material.shader.name}");
+                Debug.Log($"æ˜¯å¦URP: {IsURPShader(objectRenderer.material.shader)}");
             }
-            else if (spriteRenderer != null)
-            {
-                Debug.Log($"Ê¹ÓÃSpriteRenderer: {spriteRenderer.sprite?.name}");
-                Debug.Log($"µ±Ç°ÑÕÉ«: {spriteRenderer.color}");
-                Debug.Log("? SpriteRendererÌìÈ»Ö§³ÖÍ¸Ã÷¶È");
-            }
-            else
-            {
-                Debug.LogError("? Î´ÕÒµ½Renderer×é¼ş£¡");
-            }
-
-            // ¼ì²éÔ¤ÖÆÍ¸Ã÷²ÄÖÊ
-            if (transparentMaterialPrefab != null)
-            {
-                Debug.Log($"? Ô¤ÖÆÍ¸Ã÷²ÄÖÊ: {transparentMaterialPrefab.name}");
-                Debug.Log($"Ô¤ÖÆ²ÄÖÊShader: {transparentMaterialPrefab.shader.name}");
-            }
-            else
-            {
-                Debug.LogWarning("?? Ã»ÓĞÉèÖÃÔ¤ÖÆÍ¸Ã÷²ÄÖÊ");
-            }
-
-            Debug.Log("=== ¼ì²éÍê³É ===");
-        }
-
-        [ContextMenu("?? ×Ô¶¯ĞŞ¸´URPÍ¸Ã÷¶È")]
-        private void DebugFixURPTransparency()
-        {
-            if (Application.isPlaying)
-            {
-                Debug.Log("¿ªÊ¼URPÍ¸Ã÷¶È×Ô¶¯ĞŞ¸´...");
-                useURPCompatibility = true;
-                SetupURPTransparency();
-                Debug.Log("URPÍ¸Ã÷¶ÈĞŞ¸´Íê³É");
-            }
-            else
-            {
-                Debug.Log("ÇëÔÚÔËĞĞÊ±Ö´ĞĞURPÍ¸Ã÷¶ÈĞŞ¸´");
-            }
-        }
-
-        [ContextMenu("?? ÊÖ¶¯²âÊÔÍ¸Ã÷¶È")]
-        private void DebugTestTransparency()
-        {
-            if (Application.isPlaying)
-            {
-                StartCoroutine(TestTransparencyAnimation());
-            }
-            else
-            {
-                Debug.Log("ÇëÔÚÔËĞĞÊ±²âÊÔÍ¸Ã÷¶È");
-            }
-        }
-
-        private IEnumerator TestTransparencyAnimation()
-        {
-            Debug.Log("¿ªÊ¼Í¸Ã÷¶È²âÊÔ¶¯»­...");
-
-            float duration = 3f;
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                float alpha = Mathf.PingPong(elapsed, 1f); // 0µ½1Ö®¼äÍù·µ
-
-                SetAlpha(alpha);
-                Debug.Log($"²âÊÔÍ¸Ã÷¶È: {alpha:F2}");
-
-                yield return new WaitForSeconds(0.1f);
-            }
-
-            // »Ö¸´Ô­Ê¼Í¸Ã÷¶È
-            RestoreOriginalColor();
-            Debug.Log("Í¸Ã÷¶È²âÊÔÍê³É");
         }
 
         #endregion

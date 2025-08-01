@@ -329,7 +329,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a787c484a627014a898f9ed98d15a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bugType: 8
+  bugType: 1
   startWithBugActive: 1
   correctObject: {fileID: 1735138189}
   popupAnimationTime: 0.5
@@ -371,6 +371,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 0}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -958,6 +972,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -976,7 +1004,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -1606,7 +1634,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a787c484a627014a898f9ed98d15a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bugType: 9
+  bugType: 2
   startWithBugActive: 1
   correctObject: {fileID: 1030591527}
   popupAnimationTime: 0.5
@@ -1648,6 +1676,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 0}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -2850,7 +2892,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a787c484a627014a898f9ed98d15a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bugType: 3
+  bugType: 6
   startWithBugActive: 1
   correctObject: {fileID: 476730815}
   popupAnimationTime: 0.5
@@ -2892,6 +2934,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -2910,7 +2966,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -3339,7 +3395,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a787c484a627014a898f9ed98d15a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bugType: 9
+  bugType: 4
   startWithBugActive: 1
   correctObject: {fileID: 1254939891}
   popupAnimationTime: 0.5
@@ -3381,6 +3437,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -4219,7 +4289,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a787c484a627014a898f9ed98d15a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bugType: 6
+  bugType: 7
   startWithBugActive: 1
   correctObject: {fileID: 547606883}
   popupAnimationTime: 0.5
@@ -4261,6 +4331,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -4279,7 +4363,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -4424,6 +4508,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -4442,7 +4540,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -5036,6 +5134,20 @@ MonoBehaviour:
   flickerAlphaMax: 1
   collisionMissingAlpha: 0.8
   buggyMaterial: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+  hideMaterialCompletely: 0
+  wrongObject: {fileID: 0}
+  hideObjectCompletely: 0
+  missingObjectAlpha: 0
+  shakeIntensity: 0.1
+  shakeSpeed: 10
+  shakeDirection: {x: 1, y: 1, z: 1}
+  wrongPosition: {x: 0, y: 0, z: 0}
+  wrongRotation: {x: 0, y: 0, z: 0}
+  wrongScale: {x: 1, y: 1, z: 1}
+  enableClippingMode: 0
+  clippingOffset: -0.5
+  useURPCompatibility: 1
+  transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
   autoFixMaterialTransparency: 1
   showDebugInfo: 0
@@ -5054,7 +5166,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3

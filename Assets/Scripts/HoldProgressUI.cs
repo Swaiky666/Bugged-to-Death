@@ -277,15 +277,13 @@ namespace BugFixerGame
         {
             switch (bugType)
             {
-                case BugType.ObjectMissing: return "物件缺失";
-                case BugType.ObjectMoved: return "位置错误";
-                case BugType.MaterialMissing: return "材质丢失";
-                case BugType.ObjectFlickering: return "物件闪烁";
-                case BugType.CollisionMissing: return "碰撞丢失";
-                case BugType.ClippingBug: return "穿模Bug";
-                case BugType.ObjectAdded: return "多余物件";
-                case BugType.CodeEffect: return "代码异常";
-                case BugType.ExtraEyes: return "异常监视";
+                case BugType.ObjectFlickering: return "物体闪烁";
+                case BugType.CollisionMissing: return "碰撞缺失";
+                case BugType.WrongOrMissingMaterial: return "错误或缺失材质";
+                case BugType.WrongObject: return "错误物体";
+                case BugType.MissingObject: return "缺失物体";
+                case BugType.ObjectShaking: return "物体震动";
+                case BugType.ObjectMovedOrClipping: return "物体位移或穿模";
                 default: return bugType.ToString();
             }
         }
