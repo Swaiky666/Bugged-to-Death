@@ -38,6 +38,10 @@ namespace BugFixerGame
         [Header("材质Bug设置")]
         [SerializeField] private Material buggyMaterial; // 纯色材质等
 
+        [Header("URP闪烁修复")]
+        [SerializeField] private bool useURPCompatibility = true; // 启用URP兼容模式
+        [SerializeField] private Material transparentMaterialPrefab; // 预制的透明材质（在Inspector中分配）
+
         [Header("闪烁Bug调试和修复")]
         [SerializeField] private bool debugFlickering = true;
         [SerializeField] private bool autoFixMaterialTransparency = true; // 自动修复材质透明度设置
@@ -64,6 +68,15 @@ namespace BugFixerGame
 
         // 特效对象
         private GameObject spawnedEffect;
+
+        // URP材质相关常量
+        private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
+        private static readonly int SurfaceTypeProperty = Shader.PropertyToID("_Surface");
+        private static readonly int BlendModeProperty = Shader.PropertyToID("_Blend");
+        private static readonly int AlphaClipProperty = Shader.PropertyToID("_AlphaClip");
+        private static readonly int SrcBlendProperty = Shader.PropertyToID("_SrcBlend");
+        private static readonly int DstBlendProperty = Shader.PropertyToID("_DstBlend");
+        private static readonly int ZWriteProperty = Shader.PropertyToID("_ZWrite");
 
         // 事件
         public static event Action<BugObject> OnBugClicked;         // Bug被点击
@@ -396,38 +409,6 @@ namespace BugFixerGame
             }
         }
 
-        private void ApplyFlickeringEffect()
-        {
-            if (debugFlickering)
-                Debug.Log($"[闪烁调试] 开始应用闪烁效果到 {gameObject.name}");
-
-            // 检查并设置材质透明度支持
-            if (autoFixMaterialTransparency)
-            {
-                EnsureMaterialSupportsTransparency();
-            }
-
-            if (flickerCoroutine != null)
-                StopCoroutine(flickerCoroutine);
-
-            flickerCoroutine = StartCoroutine(FlickerCoroutine());
-        }
-
-        private void RemoveFlickeringEffect()
-        {
-            if (flickerCoroutine != null)
-            {
-                StopCoroutine(flickerCoroutine);
-                flickerCoroutine = null;
-
-                if (debugFlickering)
-                    Debug.Log($"[闪烁调试] 停止闪烁效果");
-            }
-
-            // 恢复原始透明度
-            RestoreOriginalColor();
-        }
-
         private void ApplyCollisionMissingEffect()
         {
             // 将碰撞体设为Trigger，这样可以被点击但没有物理碰撞
@@ -464,7 +445,161 @@ namespace BugFixerGame
 
         #endregion
 
-        #region 增强版闪烁功能
+        #region URP兼容的闪烁功能
+
+        private void ApplyFlickeringEffect()
+        {
+            if (debugFlickering)
+                Debug.Log($"[URP闪烁] 开始应用闪烁效果到 {gameObject.name}");
+
+            // URP兼容性处理
+            if (useURPCompatibility)
+            {
+                SetupURPTransparency();
+            }
+            else
+            {
+                // 传统方式（可能在URP中不工作）
+                EnsureMaterialSupportsTransparency();
+            }
+
+            if (flickerCoroutine != null)
+                StopCoroutine(flickerCoroutine);
+
+            flickerCoroutine = StartCoroutine(FlickerCoroutine());
+        }
+
+        private void RemoveFlickeringEffect()
+        {
+            if (flickerCoroutine != null)
+            {
+                StopCoroutine(flickerCoroutine);
+                flickerCoroutine = null;
+
+                if (debugFlickering)
+                    Debug.Log($"[URP闪烁] 停止闪烁效果");
+            }
+
+            // 恢复原始透明度
+            RestoreOriginalColor();
+        }
+
+        private void SetupURPTransparency()
+        {
+            if (objectRenderer == null && spriteRenderer == null)
+            {
+                Debug.LogError("[URP闪烁] 未找到Renderer组件！");
+                return;
+            }
+
+            // 处理SpriteRenderer（通常不需要特殊处理）
+            if (spriteRenderer != null)
+            {
+                if (debugFlickering)
+                    Debug.Log("[URP闪烁] 使用SpriteRenderer，已支持透明度");
+                return;
+            }
+
+            // 处理MeshRenderer的URP材质
+            if (objectRenderer != null)
+            {
+                Material currentMat = objectRenderer.material;
+
+                if (debugFlickering)
+                {
+                    Debug.Log($"[URP闪烁] 当前材质: {currentMat.name}");
+                    Debug.Log($"[URP闪烁] 当前Shader: {currentMat.shader.name}");
+                }
+
+                // 检查是否是URP Shader
+                if (IsURPShader(currentMat.shader))
+                {
+                    SetupURPMaterialTransparency(currentMat);
+                }
+                else
+                {
+                    // 如果不是URP shader，尝试使用预制透明材质
+                    if (transparentMaterialPrefab != null)
+                    {
+                        if (debugFlickering)
+                            Debug.Log("[URP闪烁] 使用预制透明材质替换");
+
+                        // 保存原始材质
+                        if (originalMaterial == null)
+                            originalMaterial = currentMat;
+
+                        // 应用透明材质
+                        objectRenderer.material = transparentMaterialPrefab;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[URP闪烁] 材质 {currentMat.name} 不是URP shader且没有预制透明材质！");
+                        Debug.LogWarning("[URP闪烁] 请在Inspector中分配Transparent Material Prefab");
+
+                        // 尝试传统方式作为备用
+                        EnsureMaterialSupportsTransparency();
+                    }
+                }
+            }
+        }
+
+        private bool IsURPShader(Shader shader)
+        {
+            string shaderName = shader.name.ToLower();
+            return shaderName.Contains("universal render pipeline") ||
+                   shaderName.Contains("urp") ||
+                   shaderName.Contains("universal/lit") ||
+                   shaderName.Contains("universal/simple lit") ||
+                   shaderName.Contains("universal/unlit");
+        }
+
+        private void SetupURPMaterialTransparency(Material mat)
+        {
+            if (debugFlickering)
+                Debug.Log("[URP闪烁] 设置URP材质透明度支持");
+
+            try
+            {
+                // 设置Surface Type为Transparent (1.0)
+                if (mat.HasProperty(SurfaceTypeProperty))
+                {
+                    mat.SetFloat(SurfaceTypeProperty, 1.0f); // 1 = Transparent
+                    if (debugFlickering)
+                        Debug.Log("[URP闪烁] Surface Type设置为Transparent");
+                }
+
+                // 设置Blend Mode为Alpha (0)
+                if (mat.HasProperty(BlendModeProperty))
+                {
+                    mat.SetFloat(BlendModeProperty, 0.0f); // 0 = Alpha
+                }
+
+                // 设置混合参数
+                if (mat.HasProperty(SrcBlendProperty))
+                    mat.SetFloat(SrcBlendProperty, (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+
+                if (mat.HasProperty(DstBlendProperty))
+                    mat.SetFloat(DstBlendProperty, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+                if (mat.HasProperty(ZWriteProperty))
+                    mat.SetFloat(ZWriteProperty, 0.0f); // 关闭深度写入
+
+                // 启用透明关键字
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                mat.EnableKeyword("_ALPHABLEND_ON");
+
+                // 设置渲染队列
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+                if (debugFlickering)
+                    Debug.Log("[URP闪烁] URP透明度设置完成");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[URP闪烁] 设置URP透明度时出错: {e.Message}");
+            }
+        }
 
         private void EnsureMaterialSupportsTransparency()
         {
@@ -519,7 +654,7 @@ namespace BugFixerGame
 
         private void SetMaterialToTransparent(Material mat)
         {
-            // 设置为透明模式
+            // 设置为透明模式（Built-in RP Standard shader）
             mat.SetFloat("_Mode", 3); // 3 = Transparent mode
             mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
@@ -593,14 +728,35 @@ namespace BugFixerGame
             }
             else if (objectRenderer != null)
             {
-                // 注意：修改material.color会创建材质实例
-                Color color = objectRenderer.material.color;
-                color.a = alpha;
-                objectRenderer.material.color = color;
-                success = true;
+                Material mat = objectRenderer.material;
 
-                if (debugFlickering && Time.frameCount % 120 == 0) // 每2秒输出一次
-                    Debug.Log($"[透明度设置] Material设置为 {alpha}");
+                // URP使用_BaseColor属性
+                if (mat.HasProperty(BaseColorProperty))
+                {
+                    Color color = mat.GetColor(BaseColorProperty);
+                    color.a = alpha;
+                    mat.SetColor(BaseColorProperty, color);
+                    success = true;
+
+                    if (debugFlickering && Time.frameCount % 120 == 0)
+                        Debug.Log($"[透明度设置] URP _BaseColor透明度: {alpha}");
+                }
+                // 备用：尝试传统的color属性
+                else if (mat.HasProperty("_Color"))
+                {
+                    Color color = mat.color;
+                    color.a = alpha;
+                    mat.color = color;
+                    success = true;
+
+                    if (debugFlickering && Time.frameCount % 120 == 0)
+                        Debug.Log($"[透明度设置] 传统Color透明度: {alpha}");
+                }
+                else
+                {
+                    if (debugFlickering)
+                        Debug.LogWarning("[透明度设置] 材质没有_BaseColor或_Color属性！");
+                }
             }
             else
             {
@@ -616,7 +772,13 @@ namespace BugFixerGame
             if (spriteRenderer != null)
                 return spriteRenderer.color.a;
             else if (objectRenderer != null)
-                return objectRenderer.material.color.a;
+            {
+                Material mat = objectRenderer.material;
+                if (mat.HasProperty(BaseColorProperty))
+                    return mat.GetColor(BaseColorProperty).a;
+                else if (mat.HasProperty("_Color"))
+                    return mat.color.a;
+            }
 
             return -1f; // 表示无法获取
         }
@@ -632,10 +794,34 @@ namespace BugFixerGame
             }
             else if (objectRenderer != null)
             {
-                objectRenderer.material.color = originalColor;
+                // 如果使用了预制透明材质，恢复原始材质
+                if (transparentMaterialPrefab != null && originalMaterial != null &&
+                    objectRenderer.material == transparentMaterialPrefab)
+                {
+                    objectRenderer.material = originalMaterial;
+                    if (debugFlickering)
+                        Debug.Log($"[透明度恢复] 已恢复原始材质: {originalMaterial.name}");
+                }
+                else
+                {
+                    // 恢复颜色
+                    Material mat = objectRenderer.material;
+                    if (mat.HasProperty(BaseColorProperty))
+                    {
+                        Color color = mat.GetColor(BaseColorProperty);
+                        color.a = originalColor.a;
+                        mat.SetColor(BaseColorProperty, color);
+                    }
+                    else if (mat.HasProperty("_Color"))
+                    {
+                        Color color = mat.color;
+                        color.a = originalColor.a;
+                        mat.color = color;
+                    }
 
-                if (debugFlickering)
-                    Debug.Log($"[透明度恢复] Material恢复到 {originalColor.a}");
+                    if (debugFlickering)
+                        Debug.Log($"[透明度恢复] 材质颜色已恢复");
+                }
             }
         }
 
@@ -772,52 +958,92 @@ namespace BugFixerGame
                 ActivateBug();
         }
 
-        [ContextMenu("?? 检查材质设置")]
-        private void DebugCheckMaterial()
+        [ContextMenu("?? 检查URP材质设置")]
+        private void DebugCheckURPMaterial()
         {
-            Debug.Log("=== 材质设置检查 ===");
+            Debug.Log("=== URP材质设置检查 ===");
 
             if (objectRenderer != null)
             {
                 Material mat = objectRenderer.sharedMaterial;
                 Debug.Log($"材质名称: {mat.name}");
                 Debug.Log($"Shader: {mat.shader.name}");
+                Debug.Log($"是否URP Shader: {IsURPShader(mat.shader)}");
 
-                if (mat.HasProperty("_Mode"))
+                // 检查URP特有属性
+                if (mat.HasProperty(SurfaceTypeProperty))
                 {
-                    float mode = mat.GetFloat("_Mode");
-                    string modeText = mode == 0 ? "Opaque(不透明)" :
-                                     mode == 1 ? "Cutout(裁剪)" :
-                                     mode == 2 ? "Fade(渐变)" :
-                                     mode == 3 ? "Transparent(透明)" : "未知";
-                    Debug.Log($"渲染模式: {mode} ({modeText})");
+                    float surfaceType = mat.GetFloat(SurfaceTypeProperty);
+                    string surfaceTypeText = surfaceType == 0 ? "Opaque(不透明)" : "Transparent(透明)";
+                    Debug.Log($"Surface Type: {surfaceType} ({surfaceTypeText})");
+                }
+                else
+                {
+                    Debug.LogWarning("材质没有_Surface属性（可能不是URP材质）");
                 }
 
-                Debug.Log($"当前材质颜色: {mat.color}");
+                if (mat.HasProperty(BaseColorProperty))
+                {
+                    Color baseColor = mat.GetColor(BaseColorProperty);
+                    Debug.Log($"Base Color: {baseColor}");
+                }
+                else if (mat.HasProperty("_Color"))
+                {
+                    Debug.Log($"Color: {mat.color}");
+                }
+                else
+                {
+                    Debug.LogWarning("材质没有颜色属性！");
+                }
+
                 Debug.Log($"渲染队列: {mat.renderQueue}");
 
-                // 检查是否支持透明度
-                bool supportsTransparency = mat.renderQueue >= 3000 || mat.shader.name.Contains("Transparent") || mat.shader.name.Contains("Fade");
-                Debug.Log($"是否支持透明度: {supportsTransparency}");
+                // 检查关键字
+                if (mat.IsKeywordEnabled("_SURFACE_TYPE_TRANSPARENT"))
+                    Debug.Log("? _SURFACE_TYPE_TRANSPARENT 关键字已启用");
+                else
+                    Debug.Log("? _SURFACE_TYPE_TRANSPARENT 关键字未启用");
 
-                if (!supportsTransparency)
-                {
-                    Debug.LogWarning("?? 材质可能不支持透明度！建议将Rendering Mode设置为Transparent");
-                }
             }
             else if (spriteRenderer != null)
             {
                 Debug.Log($"使用SpriteRenderer: {spriteRenderer.sprite?.name}");
                 Debug.Log($"当前颜色: {spriteRenderer.color}");
-                Debug.Log("SpriteRenderer天然支持透明度 ?");
+                Debug.Log("? SpriteRenderer天然支持透明度");
             }
             else
             {
-                Debug.LogError("? 未找到Renderer或SpriteRenderer组件！");
-                Debug.LogError("请确保GameObject有MeshRenderer、SpriteRenderer或其他Renderer组件");
+                Debug.LogError("? 未找到Renderer组件！");
+            }
+
+            // 检查预制透明材质
+            if (transparentMaterialPrefab != null)
+            {
+                Debug.Log($"? 预制透明材质: {transparentMaterialPrefab.name}");
+                Debug.Log($"预制材质Shader: {transparentMaterialPrefab.shader.name}");
+            }
+            else
+            {
+                Debug.LogWarning("?? 没有设置预制透明材质");
             }
 
             Debug.Log("=== 检查完成 ===");
+        }
+
+        [ContextMenu("?? 自动修复URP透明度")]
+        private void DebugFixURPTransparency()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("开始URP透明度自动修复...");
+                useURPCompatibility = true;
+                SetupURPTransparency();
+                Debug.Log("URP透明度修复完成");
+            }
+            else
+            {
+                Debug.Log("请在运行时执行URP透明度修复");
+            }
         }
 
         [ContextMenu("?? 手动测试透明度")]
