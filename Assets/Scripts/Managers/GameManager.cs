@@ -1,52 +1,36 @@
+// 重构后的 GameManager.cs
 using System;
-using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace BugFixerGame
 {
     public class GameManager : MonoBehaviour
     {
-        [Header("游戏设置")]
-        [SerializeField] private int totalRooms = 10;           // 总房间数
-        [SerializeField] private float memoryTime = 5f;         // 记忆阶段时间
-        [SerializeField] private float transitionTime = 1f;     // 过渡时间
+        [Header("设置")]
+        [SerializeField] private GameObject gamePrefab;
+        [SerializeField] private GameObject mainMenuCamera;
+        [SerializeField] private GameObject mainMenuUI;
 
         [Header("分数设置")]
-        [SerializeField] private int perfectScore = 1;          // 正确判断得分
-        [SerializeField] private int wrongPenalty = -1;         // 错误判断扣分
-        [SerializeField] private int correctBugDetection = 1;   // 正确检测到bug得分
-        [SerializeField] private int falsePositivePenalty = -1; // 误判非bug物体扣分
+        [SerializeField] private int bugScore = 1;
+        [SerializeField] private int wrongPenalty = -1;
 
-        // 当前游戏状态
-        private GameState currentState;
-        private int currentRoomIndex = 0;
-        private int currentScore = 0;
-        private bool currentRoomHasBug = false;
-        private bool playerDetectedBug = false;
+        private GameObject currentGameInstance;
+        private int score = 0;
+        private bool isPaused = false;
 
-        // 游戏数据
-        private GameData gameData;
-
-        // 事件相关
-        public static event Action<GameState> OnGameStateChanged;
-        public static event Action<int> OnScoreChanged;
-        public static event Action<int, int> OnRoomProgressChanged; // (current, total)
-        public static event Action<RoomResult, int> OnRoomCompleted; // (result, score)
-        public static event Action<GameEnding, int> OnGameCompleted; // (ending, finalScore)
-
-        // 单例模式
         public static GameManager Instance { get; private set; }
 
-        #region Unity生命周期
+        public static event Action<int> OnScoreChanged;
+        public static event Action<bool> OnPauseStateChanged;
 
         private void Awake()
         {
-            // 单例模式实现
             if (Instance == null)
             {
                 Instance = this;
                 DontDestroyOnLoad(gameObject);
-                InitializeGameManager();
             }
             else
             {
@@ -56,619 +40,70 @@ namespace BugFixerGame
 
         private void OnEnable()
         {
-            // 订阅UIManager事件
-            UIManager.OnStartGameClicked += StartNewGame;
-            UIManager.OnClearBugClicked += OnPlayerDetectBug;
-            UIManager.OnNextRoomClicked += OnPlayerProceedToNextRoom;
-            UIManager.OnRestartClicked += RestartGame;
-            UIManager.OnMainMenuClicked += ReturnToMainMenu;
-            UIManager.OnResumeClicked += ResumeGame;
-
-            // 订阅新的Player事件
-            Player.OnBugObjectClicked += OnPlayerClickedBug;
-            Player.OnEmptySpaceClicked += OnPlayerClickedEmpty;
-            Player.OnObjectHoldProgress += OnObjectHoldProgress;
-            Player.OnHoldCancelled += OnHoldCancelled;
-            Player.OnObjectDetectionComplete += OnPlayerDetectionComplete; // 新增事件
-
-            // 订阅BugObject事件
-            BugObject.OnBugClicked += OnBugObjectClicked;
-            BugObject.OnBugFixed += OnBugObjectFixed;
+            Player.OnObjectDetectionComplete += HandleObjectDetection;
         }
 
         private void OnDisable()
         {
-            // 取消订阅UIManager事件
-            UIManager.OnStartGameClicked -= StartNewGame;
-            UIManager.OnClearBugClicked -= OnPlayerDetectBug;
-            UIManager.OnNextRoomClicked -= OnPlayerProceedToNextRoom;
-            UIManager.OnRestartClicked -= RestartGame;
-            UIManager.OnMainMenuClicked -= ReturnToMainMenu;
-            UIManager.OnResumeClicked -= ResumeGame;
-
-            // 取消订阅Player事件
-            Player.OnBugObjectClicked -= OnPlayerClickedBug;
-            Player.OnEmptySpaceClicked -= OnPlayerClickedEmpty;
-            Player.OnObjectHoldProgress -= OnObjectHoldProgress;
-            Player.OnHoldCancelled -= OnHoldCancelled;
-            Player.OnObjectDetectionComplete -= OnPlayerDetectionComplete; // 新增事件
-
-            // 取消订阅BugObject事件
-            BugObject.OnBugClicked -= OnBugObjectClicked;
-            BugObject.OnBugFixed -= OnBugObjectFixed;
-        }
-
-        private void Start()
-        {
-            ChangeState(GameState.MainMenu);
+            Player.OnObjectDetectionComplete -= HandleObjectDetection;
         }
 
         private void Update()
         {
-            HandleInput();
-            UpdateCurrentState();
-        }
-
-        #endregion
-
-        #region Player检测结果处理
-
-        private void OnPlayerDetectionComplete(GameObject detectedObject, bool isActualBug)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log($"收到玩家检测结果: 物体={detectedObject.name}, 是否为真bug={isActualBug}");
-
-            // 计算得分变化
-            int scoreChange = 0;
-            string resultMessage = "";
-
-            if (isActualBug)
-            {
-                // 玩家正确检测到bug物体
-                scoreChange = correctBugDetection;
-                resultMessage = $"正确！检测到bug物体: {detectedObject.name}";
-                playerDetectedBug = true; // 标记玩家检测到了bug
-            }
-            else
-            {
-                // 玩家误判了非bug物体
-                scoreChange = falsePositivePenalty;
-                resultMessage = $"误判！{detectedObject.name} 不是bug物体";
-            }
-
-            // 更新分数
-            currentScore += scoreChange;
-            currentScore = Mathf.Max(0, currentScore); // 确保分数不为负数
-
-            OnScoreChanged?.Invoke(currentScore);
-
-            // 显示即时得分反馈
-            ShowInstantScoreFeedback(scoreChange, resultMessage);
-
-            Debug.Log($"检测结果处理完成: {resultMessage}, 分数变化: {scoreChange}, 当前总分: {currentScore}");
-
-            // 检查房间完成情况
-            CheckRoomCompletion();
-        }
-
-        private void OnObjectHoldProgress(GameObject obj, float progress)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            // 可以在这里显示长按进度UI反馈
-            // Debug.Log($"长按进度: {obj.name} - {progress:P0}");
-        }
-
-        private void OnHoldCancelled()
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log("长按被取消");
-            // 可以在这里显示取消反馈
-        }
-
-        #endregion
-
-        #region Player点击相关处理
-
-        private void OnPlayerClickedBug(BugObject bugObject)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log($"收到通过PlayerController点击了Bug物体: {bugObject.name}");
-
-            // 标记检测到Bug
-            playerDetectedBug = true;
-        }
-
-        private void OnPlayerClickedEmpty(Vector3 position)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log($"收到点击了空白区域: {position}");
-
-            // 点击空白区域不算检测到Bug
-            // 可以在这里显示错误点击的反馈
-        }
-
-        #endregion
-
-        #region BugObject点击相关处理
-
-        private void OnBugObjectClicked(BugObject bugObject)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log($"收到点击了Bug物体: {bugObject.name}");
-
-            // 标记检测到Bug
-            playerDetectedBug = true;
-        }
-
-        private void OnBugObjectFixed(BugObject bugObject)
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log($"Bug物体修复完成: {bugObject.name}");
-
-            // 并即给予正反馈分数
-            int scoreChange = perfectScore;
-            currentScore += scoreChange;
-            currentScore = Mathf.Max(0, currentScore);
-
-            OnScoreChanged?.Invoke(currentScore);
-
-            // 显示即时得分反馈
-            ShowInstantScoreFeedback(scoreChange, $"Bug修复完成: {bugObject.name}");
-
-            // 检查房间内是否还有其他Bug
-            CheckRoomCompletion();
-        }
-
-        private void ShowInstantScoreFeedback(int scoreChange, string message = "")
-        {
-            // 通知UI显示得分动画
-            // 可以在这里显示得分特效
-            string displayMessage = string.IsNullOrEmpty(message) ? $"即时得分: {(scoreChange > 0 ? "+" : "")}{scoreChange}" : message;
-            Debug.Log(displayMessage);
-
-            // 如果有UIManager的通知方法，可以调用
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.ShowNotification(displayMessage, 2f);
-            }
-        }
-
-        private void CheckRoomCompletion()
-        {
-            // 检查当前房间是否还有活动的Bug
-            bool hasActiveBugs = SimplifiedRoomManager.Instance?.CurrentRoomHasBug() ?? false;
-
-            if (!hasActiveBugs)
-            {
-                // 房间内所有Bug都被修复，可以自动进入下一房间
-                Debug.Log("房间内所有Bug已修复完成！");
-
-                // 延迟一段时间后自动进入下一房间
-                StartCoroutine(AutoProceedToNextRoom());
-            }
-        }
-
-        private IEnumerator AutoProceedToNextRoom()
-        {
-            // 等待一段时间让玩家看到最后的修复效果
-            yield return new WaitForSeconds(1.5f);
-
-            // 自动进入下一房间
-            ProcessRoomResult();
-        }
-
-        #endregion
-
-        #region 初始化
-
-        private void InitializeGameManager()
-        {
-            gameData = new GameData();
-            Debug.Log("GameManager初始化完成");
-        }
-
-        #endregion
-
-        #region 游戏状态管理
-
-        public void ChangeState(GameState newState)
-        {
-            if (currentState == newState) return;
-
-            ExitCurrentState();
-            currentState = newState;
-            EnterNewState();
-
-            OnGameStateChanged?.Invoke(currentState);
-            Debug.Log($"游戏状态切换至: {currentState}");
-        }
-
-        private void ExitCurrentState()
-        {
-            switch (currentState)
-            {
-                case GameState.MemoryPhase:
-                    StopAllCoroutines(); // 停止记忆阶段计时器
-                    break;
-                case GameState.CheckPhase:
-                    // 清理检测阶段的UI状态
-                    break;
-            }
-        }
-
-        private void EnterNewState()
-        {
-            switch (currentState)
-            {
-                case GameState.MainMenu:
-                    ResetGameData();
-                    break;
-
-                case GameState.GameStart:
-                    StartCoroutine(PlayStartSequence());
-                    break;
-
-                case GameState.MemoryPhase:
-                    StartMemoryPhase();
-                    break;
-
-                case GameState.TransitionToCheck:
-                    StartCoroutine(TransitionToCheckPhase());
-                    break;
-
-                case GameState.CheckPhase:
-                    StartCheckPhase();
-                    break;
-
-                case GameState.RoomResult:
-                    ShowRoomResult();
-                    break;
-
-                case GameState.GameEnd:
-                    ShowGameEndResult();
-                    break;
-            }
-        }
-
-        private void UpdateCurrentState()
-        {
-            switch (currentState)
-            {
-                case GameState.CheckPhase:
-                    // 在检测阶段处理玩家输入
-                    break;
-            }
-        }
-
-        #endregion
-
-        #region 游戏流程控制
-
-        public void StartNewGame()
-        {
-            ResetGameData();
-            ChangeState(GameState.GameStart);
-        }
-
-        private void ResetGameData()
-        {
-            currentRoomIndex = 0;
-            currentScore = 0;
-            playerDetectedBug = false;
-            OnScoreChanged?.Invoke(currentScore);
-            OnRoomProgressChanged?.Invoke(currentRoomIndex + 1, totalRooms);
-        }
-
-        private IEnumerator PlayStartSequence()
-        {
-            // 播放开场动画/过程
-            Debug.Log("播放开场序列...");
-            yield return new WaitForSeconds(2f); // 模拟开场时间
-
-            StartNextRoom();
-        }
-
-        private void StartNextRoom()
-        {
-            if (currentRoomIndex >= totalRooms)
-            {
-                ChangeState(GameState.GameEnd);
-                return;
-            }
-
-            currentRoomIndex++;
-            OnRoomProgressChanged?.Invoke(currentRoomIndex, totalRooms);
-
-            // 生成当前房间数据（包括是否有bug）
-            GenerateRoomData();
-
-            ChangeState(GameState.MemoryPhase);
-        }
-
-        private void GenerateRoomData()
-        {
-            // 随机决定当前房间是否有bug
-            currentRoomHasBug = UnityEngine.Random.Range(0f, 1f) < 0.7f; // 70%概率有bug
-            playerDetectedBug = false;
-
-            Debug.Log($"房间 {currentRoomIndex}: {(currentRoomHasBug ? "有Bug" : "无Bug")}");
-
-            // 通知SimplifiedRoomManager加载对应的房间
-            SimplifiedRoomManager.Instance?.LoadRoom(currentRoomIndex - 1, currentRoomHasBug);
-        }
-
-        private void StartMemoryPhase()
-        {
-            Debug.Log("开始记忆阶段");
-            StartCoroutine(MemoryTimer());
-        }
-
-        private IEnumerator MemoryTimer()
-        {
-            yield return new WaitForSeconds(memoryTime);
-            ChangeState(GameState.TransitionToCheck);
-        }
-
-        private IEnumerator TransitionToCheckPhase()
-        {
-            Debug.Log("过渡到检测阶段...");
-            yield return new WaitForSeconds(transitionTime);
-            ChangeState(GameState.CheckPhase);
-        }
-
-        private void StartCheckPhase()
-        {
-            Debug.Log("开始检测阶段 - 按空格清除Bug，右键进入下一房间");
-            // 这里可以显示检测阶段的UI提示
-        }
-
-        #endregion
-
-        #region 输入处理
-
-        private void HandleInput()
-        {
-            if (currentState == GameState.CheckPhase)
-            {
-                // 空格键 - 清除Bug（已可以通过UI按钮触发）
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    OnPlayerDetectBug();
-                }
-
-                // 右键或回车键 - 进入下一房间（已可以通过UI按钮触发）
-                if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Return))
-                {
-                    OnPlayerProceedToNextRoom();
-                }
-            }
-
-            // ESC键 - 暂停游戏
-            if (Input.GetKeyDown(KeyCode.Escape) && currentState != GameState.MainMenu)
+            if (Input.GetKeyDown(KeyCode.Escape))
             {
                 TogglePause();
             }
         }
 
-        public void OnPlayerDetectBug()
+        public void StartGame()
         {
-            if (currentState != GameState.CheckPhase) return;
+            if (mainMenuCamera) mainMenuCamera.SetActive(false);
+            if (mainMenuUI) mainMenuUI.SetActive(false);
 
-            playerDetectedBug = true;
-            Debug.Log("玩家按下空格键 - 声称清除Bug");
-
-            // 并即处理房间结果
-            ProcessRoomResult();
-        }
-
-        public void OnPlayerProceedToNextRoom()
-        {
-            if (currentState != GameState.CheckPhase) return;
-
-            Debug.Log("玩家选择进入下一房间");
-
-            // 处理房间结果
-            ProcessRoomResult();
-        }
-
-        #endregion
-
-        #region 分数和结果相关
-
-        private void ProcessRoomResult()
-        {
-            RoomResult result;
-            int scoreChange = 0;
-
-            // 通过SimplifiedRoomManager判断当前房间是否有Bug
-            bool roomActuallyHasBug = SimplifiedRoomManager.Instance?.CurrentRoomHasBug() ?? false;
-
-            // 判断玩家的行为是否正确
-            if ((roomActuallyHasBug && playerDetectedBug) || (!roomActuallyHasBug && !playerDetectedBug))
+            if (gamePrefab)
             {
-                // 正确判断
-                result = RoomResult.Perfect;
-                scoreChange = perfectScore;
-            }
-            else
-            {
-                // 错误判断
-                result = RoomResult.Wrong;
-                scoreChange = wrongPenalty;
+                currentGameInstance = Instantiate(gamePrefab);
             }
 
-            // 如果玩家检测到Bug，清除房间中的Bug效果
-            if (playerDetectedBug && roomActuallyHasBug)
-            {
-                SimplifiedRoomManager.Instance?.ClearCurrentRoomBugs();
-            }
-
-            // 更新分数
-            currentScore += scoreChange;
-            currentScore = Mathf.Max(0, currentScore); // 确保分数不为负数
-
-            OnScoreChanged?.Invoke(currentScore);
-            OnRoomCompleted?.Invoke(result, scoreChange);
-
-            Debug.Log($"房间结果: {result}, 分数变化: {scoreChange}, 当前总分: {currentScore}");
-
-            ChangeState(GameState.RoomResult);
+            score = 0;
+            OnScoreChanged?.Invoke(score);
         }
 
-        private void ShowRoomResult()
+        public void ReturnToMainMenu()
         {
-            // 显示单个房间的结果反馈
-            StartCoroutine(RoomResultSequence());
+            if (currentGameInstance)
+                Destroy(currentGameInstance);
+
+            if (mainMenuCamera) mainMenuCamera.SetActive(true);
+            if (mainMenuUI) mainMenuUI.SetActive(true);
+
+            ResumeGame();
         }
 
-        private IEnumerator RoomResultSequence()
+        private void HandleObjectDetection(GameObject obj, bool isBug)
         {
-            // 显示结果UI
-            yield return new WaitForSeconds(2f); // 显示结果的时间
-
-            // 继续下一个房间或结束游戏
-            StartNextRoom();
+            int delta = isBug ? bugScore : wrongPenalty;
+            score += delta;
+            score = Mathf.Max(0, score);
+            OnScoreChanged?.Invoke(score);
         }
-
-        private void ShowGameEndResult()
-        {
-            GameEnding ending = DetermineGameEnding(currentScore);
-            OnGameCompleted?.Invoke(ending, currentScore);
-
-            Debug.Log($"游戏结束! 最终分数: {currentScore}, 结局: {ending}");
-        }
-
-        private GameEnding DetermineGameEnding(int finalScore)
-        {
-            if (finalScore >= 7)
-                return GameEnding.Perfect;
-            else if (finalScore >= 6)
-                return GameEnding.Good;
-            else
-                return GameEnding.Bad;
-        }
-
-        #endregion
-
-        #region 暂停相关
 
         public void TogglePause()
         {
-            if (currentState == GameState.Paused)
-            {
-                // 恢复游戏
-                Time.timeScale = 1f;
-                ChangeState(gameData.stateBeforePause);
-            }
-            else
-            {
-                // 暂停游戏
-                gameData.stateBeforePause = currentState;
-                Time.timeScale = 0f;
-                ChangeState(GameState.Paused);
-            }
+            isPaused = !isPaused;
+            Time.timeScale = isPaused ? 0 : 1;
+            OnPauseStateChanged?.Invoke(isPaused);
         }
 
         public void ResumeGame()
         {
-            if (currentState == GameState.Paused)
-            {
-                Time.timeScale = 1f;
-                ChangeState(gameData.stateBeforePause);
-            }
+            isPaused = false;
+            Time.timeScale = 1;
+            OnPauseStateChanged?.Invoke(false);
         }
 
-        #endregion
-
-        #region 公共接口
-
-        // 获取当前游戏状态
-        public GameState GetCurrentState() => currentState;
-
-        // 获取当前分数
-        public int GetCurrentScore() => currentScore;
-
-        // 获取当前房间进度
-        public (int current, int total) GetRoomProgress() => (currentRoomIndex, totalRooms);
-
-        // 强制结束游戏
-        public void ForceEndGame()
-        {
-            ChangeState(GameState.GameEnd);
-        }
-
-        // 重启游戏
-        public void RestartGame()
-        {
-            StartNewGame();
-        }
-
-        // 返回主菜单
-        public void ReturnToMainMenu()
-        {
-            Time.timeScale = 1f; // 确保时间恢复正常
-            ChangeState(GameState.MainMenu);
-        }
-
-        #endregion
-
-        #region 调试功能
-
-        [Header("调试功能")]
-        [SerializeField] private bool enableDebugKeys = true;
-
-        private void OnGUI()
-        {
-            if (!enableDebugKeys) return;
-
-            GUILayout.BeginArea(new Rect(10, 10, 300, 280));
-            GUILayout.Label($"状态: {currentState}");
-            GUILayout.Label($"房间: {currentRoomIndex}/{totalRooms}");
-            GUILayout.Label($"分数: {currentScore}");
-            GUILayout.Label($"当前房间有Bug: {currentRoomHasBug}");
-            GUILayout.Label($"玩家检测到Bug: {playerDetectedBug}");
-
-            if (GUILayout.Button("强制下一房间"))
-            {
-                StartNextRoom();
-            }
-
-            if (GUILayout.Button("添加分数"))
-            {
-                currentScore++;
-                OnScoreChanged?.Invoke(currentScore);
-            }
-
-            if (GUILayout.Button("减少分数"))
-            {
-                currentScore = Mathf.Max(0, currentScore - 1);
-                OnScoreChanged?.Invoke(currentScore);
-            }
-
-            if (GUILayout.Button("测试检测正确bug"))
-            {
-                GameObject testObj = new GameObject("TestBugObject");
-                OnPlayerDetectionComplete(testObj, true);
-                DestroyImmediate(testObj);
-            }
-
-            if (GUILayout.Button("测试检测错误物体"))
-            {
-                GameObject testObj = new GameObject("TestNormalObject");
-                OnPlayerDetectionComplete(testObj, false);
-                DestroyImmediate(testObj);
-            }
-
-            GUILayout.EndArea();
-        }
-
-        #endregion
+        public bool IsPaused() => isPaused;
+        public int GetScore() => score;
     }
 }
