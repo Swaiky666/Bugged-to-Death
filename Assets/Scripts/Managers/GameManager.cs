@@ -1,4 +1,5 @@
-﻿using System;
+﻿// GameManager.cs
+using System;
 using UnityEngine;
 
 namespace BugFixerGame
@@ -80,7 +81,9 @@ namespace BugFixerGame
             if (mainMenuCamera) mainMenuCamera.SetActive(true);
             if (mainMenuUI) mainMenuUI.SetActive(true);
 
+            // 取消暂停并通知 UIManager 切换到主菜单
             ResumeGame();
+            UIManager.Instance?.ShowMainMenu();
         }
 
         private void HandleObjectDetection(GameObject obj, bool isBug)

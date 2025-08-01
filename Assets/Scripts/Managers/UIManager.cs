@@ -1,3 +1,4 @@
+// UIManager.cs
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,10 +49,12 @@ namespace BugFixerGame
 
         private void InitializeUI()
         {
+            // 初始只显示主菜单
             SetPanel(mainMenuPanel, true);
             SetPanel(hudPanel, false);
             SetPanel(pausePanel, false);
 
+            // 按钮绑定
             if (startGameButton)
                 startGameButton.onClick.AddListener(() => GameManager.Instance.StartGame());
 
@@ -59,7 +62,22 @@ namespace BugFixerGame
                 quitGameButton.onClick.AddListener(() => Application.Quit());
 
             if (resumeButton)
-                resumeButton.onClick.AddListener(() => GameManager.Instance.ResumeGame());
+            {
+                resumeButton.onClick.RemoveAllListeners();
+                resumeButton.onClick.AddListener(() =>
+                {
+                    GameManager.Instance.ResumeGame();
+                    // 重锁鼠标
+                    var camCtrl = Camera.main?.GetComponent<CameraController>();
+                    if (camCtrl != null)
+                        camCtrl.SetCursorLocked(true);
+                    else
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;
+                        Cursor.visible = false;
+                    }
+                });
+            }
 
             if (returnToMenuButton)
                 returnToMenuButton.onClick.AddListener(() => GameManager.Instance.ReturnToMainMenu());
@@ -87,9 +105,14 @@ namespace BugFixerGame
             SetPanel(hudPanel, true);
         }
 
+        /// <summary>
+        /// 显示主菜单，并隐藏游戏内所有面板
+        /// </summary>
         public void ShowMainMenu()
         {
             SetPanel(mainMenuPanel, true);
+            SetPanel(hudPanel, false);
+            SetPanel(pausePanel, false);
         }
     }
 }
