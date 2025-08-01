@@ -1,4 +1,3 @@
-// 重构后的 UIManager.cs
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,12 +7,12 @@ namespace BugFixerGame
 {
     public class UIManager : MonoBehaviour
     {
-        [Header("UI面板")]
+        [Header("UI Panels")]
         [SerializeField] private GameObject mainMenuPanel;
         [SerializeField] private GameObject hudPanel;
         [SerializeField] private GameObject pausePanel;
 
-        [Header("UI元素")]
+        [Header("UI Elements")]
         [SerializeField] private TextMeshProUGUI scoreText;
         [SerializeField] private Button startGameButton;
         [SerializeField] private Button quitGameButton;
@@ -55,10 +54,13 @@ namespace BugFixerGame
 
             if (startGameButton)
                 startGameButton.onClick.AddListener(() => GameManager.Instance.StartGame());
+
             if (quitGameButton)
                 quitGameButton.onClick.AddListener(() => Application.Quit());
+
             if (resumeButton)
                 resumeButton.onClick.AddListener(() => GameManager.Instance.ResumeGame());
+
             if (returnToMenuButton)
                 returnToMenuButton.onClick.AddListener(() => GameManager.Instance.ReturnToMainMenu());
         }
@@ -66,7 +68,7 @@ namespace BugFixerGame
         public void UpdateScore(int newScore)
         {
             if (scoreText)
-                scoreText.text = "分数: " + newScore;
+                scoreText.text = "Score: " + newScore;
         }
 
         private void TogglePauseMenu(bool isPaused)

@@ -1,18 +1,16 @@
-// 重构后的 GameManager.cs
-using System;
+锘縰sing System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace BugFixerGame
 {
     public class GameManager : MonoBehaviour
     {
-        [Header("设置")]
+        [Header("Setup")]
         [SerializeField] private GameObject gamePrefab;
         [SerializeField] private GameObject mainMenuCamera;
         [SerializeField] private GameObject mainMenuUI;
 
-        [Header("分数设置")]
+        [Header("Score Settings")]
         [SerializeField] private int bugScore = 1;
         [SerializeField] private int wrongPenalty = -1;
 
@@ -68,12 +66,16 @@ namespace BugFixerGame
 
             score = 0;
             OnScoreChanged?.Invoke(score);
+            UIManager.Instance?.ShowHUD();
         }
 
         public void ReturnToMainMenu()
         {
             if (currentGameInstance)
+            {
                 Destroy(currentGameInstance);
+                currentGameInstance = null;
+            }
 
             if (mainMenuCamera) mainMenuCamera.SetActive(true);
             if (mainMenuUI) mainMenuUI.SetActive(true);

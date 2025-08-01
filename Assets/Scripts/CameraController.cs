@@ -1,20 +1,20 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace BugFixerGame
 {
     public class CameraController : MonoBehaviour
     {
-        [Header("µÚÒ»ÈË³ÆÉèÖÃ")]
+        [Header("ç¬¬ä¸€äººç§°è®¾ç½®")]
         [SerializeField] private float mouseSensitivity = 2f;
         [SerializeField] private bool invertMouseY = false;
         [SerializeField] private bool lockCursor = true;
 
-        [Header("Ğı×ªÏŞÖÆ")]
+        [Header("æ—‹è½¬é™åˆ¶")]
         [SerializeField] private bool limitRotation = true;
         [SerializeField] private float minVerticalAngle = -60f;
         [SerializeField] private float maxVerticalAngle = 60f;
 
-        [Header("Ëõ·ÅÉèÖÃ")]
+        [Header("ç¼©æ”¾è®¾ç½®")]
         [SerializeField] private bool enableZoom = true;
         [SerializeField] private float zoomSpeed = 2f;
         [SerializeField] private float minFieldOfView = 20f;
@@ -24,14 +24,14 @@ namespace BugFixerGame
         private float originalFieldOfView;
         private Camera cameraComponent;
 
-        #region UnityÉúÃüÖÜÆÚ
+        #region Unityç”Ÿå‘½å‘¨æœŸ
 
         private void Awake()
         {
             cameraComponent = GetComponent<Camera>();
             if (cameraComponent == null)
             {
-                Debug.LogError("CameraControllerĞèÒª¹ÒÔØÔÚÓĞCamera×é¼şµÄGameObjectÉÏ£¡");
+                Debug.LogError("CameraControlleréœ€è¦æŒ‚è½½åœ¨æœ‰Cameraç»„ä»¶çš„GameObjectä¸Šï¼");
                 enabled = false;
                 return;
             }
@@ -57,11 +57,11 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ÊäÈë´¦Àí
+        #region è¾“å…¥å¤„ç†
 
         private void HandleInput()
         {
-            // R¼üÖØÖÃÏà»ú
+            // Ré”®é‡ç½®ç›¸æœº
             if (Input.GetKeyDown(KeyCode.R))
             {
                 ResetCamera();
@@ -70,7 +70,7 @@ namespace BugFixerGame
 
         private void HandleMouseLook()
         {
-            // Ö»ÓĞÔÚÊó±êËø¶¨Ê±²Å´¦ÀíÊÓ½Ç
+            // åªæœ‰åœ¨é¼ æ ‡é”å®šæ—¶æ‰å¤„ç†è§†è§’
             if (Cursor.lockState != CursorLockMode.Locked) return;
 
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
@@ -79,7 +79,7 @@ namespace BugFixerGame
             if (invertMouseY)
                 mouseY = -mouseY;
 
-            // Ë®Æ½Ğı×ª£¨YÖá£©- Ğı×ª¸¸ÎïÌå£¨Íæ¼Ò£©
+            // æ°´å¹³æ—‹è½¬ï¼ˆYè½´ï¼‰- æ—‹è½¬çˆ¶ç‰©ä½“ï¼ˆç©å®¶ï¼‰
             if (transform.parent != null)
             {
                 transform.parent.Rotate(Vector3.up * mouseX);
@@ -89,7 +89,7 @@ namespace BugFixerGame
                 transform.Rotate(Vector3.up * mouseX);
             }
 
-            // ´¹Ö±Ğı×ª£¨XÖá£©- Ö»Ğı×ªÏà»ú
+            // å‚ç›´æ—‹è½¬ï¼ˆXè½´ï¼‰- åªæ—‹è½¬ç›¸æœº
             currentRotationX -= mouseY;
             if (limitRotation)
             {
@@ -113,7 +113,7 @@ namespace BugFixerGame
 
         #endregion
 
-        #region Ïà»ú¿ØÖÆ
+        #region ç›¸æœºæ§åˆ¶
 
         public void ToggleCursorLock()
         {
@@ -121,13 +121,13 @@ namespace BugFixerGame
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
-                Debug.Log("Êó±ê½âËø - ¿ÉÒÔµã»÷UI");
+                Debug.Log("é¼ æ ‡è§£é” - å¯ä»¥ç‚¹å‡»UI");
             }
             else
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
-                Debug.Log("Êó±êËø¶¨ - µÚÒ»ÈË³ÆÄ£Ê½");
+                Debug.Log("é¼ æ ‡é”å®š - ç¬¬ä¸€äººç§°æ¨¡å¼");
             }
         }
 
@@ -151,7 +151,7 @@ namespace BugFixerGame
             transform.localRotation = Quaternion.identity;
             cameraComponent.fieldOfView = originalFieldOfView;
 
-            Debug.Log("Ïà»úÒÑÖØÖÃ");
+            Debug.Log("ç›¸æœºå·²é‡ç½®");
         }
 
         public void SetMouseSensitivity(float sensitivity)
@@ -161,7 +161,7 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ¹«¹²½Ó¿Ú
+        #region å…¬å…±æ¥å£
 
         public Camera GetCamera()
         {
@@ -186,9 +186,9 @@ namespace BugFixerGame
 
         #endregion
 
-        #region µ÷ÊÔ¹¦ÄÜ
+        #region è°ƒè¯•åŠŸèƒ½
 
-        [Header("µ÷ÊÔ")]
+        [Header("è°ƒè¯•")]
         [SerializeField] private bool showDebugInfo = false;
 
         private void OnGUI()
@@ -197,19 +197,19 @@ namespace BugFixerGame
 
             GUILayout.BeginArea(new Rect(Screen.width - 300, 10, 280, 150));
             GUILayout.Label("=== Camera Controller ===");
-            GUILayout.Label($"´¹Ö±Ğı×ª½Ç¶È: {currentRotationX:F1}¡ã");
-            GUILayout.Label($"ÊÓÒ°½Ç¶È: {cameraComponent.fieldOfView:F1}¡ã");
-            GUILayout.Label($"Êó±êËø¶¨: {(IsCursorLocked() ? "ÊÇ" : "·ñ")}");
-            GUILayout.Label($"Êó±êÁéÃô¶È: {mouseSensitivity:F1}");
+            GUILayout.Label($"å‚ç›´æ—‹è½¬è§’åº¦: {currentRotationX:F1}Â°");
+            GUILayout.Label($"è§†é‡è§’åº¦: {cameraComponent.fieldOfView:F1}Â°");
+            GUILayout.Label($"é¼ æ ‡é”å®š: {(IsCursorLocked() ? "æ˜¯" : "å¦")}");
+            GUILayout.Label($"é¼ æ ‡çµæ•åº¦: {mouseSensitivity:F1}");
 
             GUILayout.Space(10);
-            GUILayout.Label("¿ØÖÆËµÃ÷:");
-            GUILayout.Label("Êó±ê - ÊÓ½ÇĞı×ª");
-            GUILayout.Label("¹öÂÖ - Ëõ·Å");
-            GUILayout.Label("ESC - ÇĞ»»Êó±êËø¶¨");
-            GUILayout.Label("R - ÖØÖÃÏà»ú");
+            GUILayout.Label("æ§åˆ¶è¯´æ˜:");
+            GUILayout.Label("é¼ æ ‡ - è§†è§’æ—‹è½¬");
+            GUILayout.Label("æ»šè½® - ç¼©æ”¾");
+            GUILayout.Label("ESC - åˆ‡æ¢é¼ æ ‡é”å®š");
+            GUILayout.Label("R - é‡ç½®ç›¸æœº");
 
-            if (GUILayout.Button("ÖØÖÃÏà»ú"))
+            if (GUILayout.Button("é‡ç½®ç›¸æœº"))
             {
                 ResetCamera();
             }

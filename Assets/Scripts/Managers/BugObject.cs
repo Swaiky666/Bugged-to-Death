@@ -7,6 +7,10 @@ namespace BugFixerGame
     // Bug对象类 - 负责管理需要Bug效果的GameObject上
     public class BugObject : MonoBehaviour
     {
+        // 用于判断当前对象是否为Bug
+public bool IsBug => bugType != BugType.None;
+
+
         [Header("Bug配置")]
         [SerializeField] private BugType bugType = BugType.None;
         [SerializeField] private bool startWithBugActive = false;

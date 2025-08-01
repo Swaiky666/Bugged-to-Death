@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 
 namespace BugFixerGame
@@ -6,45 +6,45 @@ namespace BugFixerGame
     [RequireComponent(typeof(CharacterController))]
     public class Player : MonoBehaviour
     {
-        [Header("ÒÆ¶¯²ÎÊı")]
+        [Header("ç§»åŠ¨å‚æ•°")]
         [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float jumpForce = 5f;
         [SerializeField] private float gravity = -20f;
 
-        [Header("¼ì²âÉèÖÃ")]
+        [Header("æ£€æµ‹è®¾ç½®")]
         [SerializeField] private float groundCheckDistance = 0.3f;
         [SerializeField] private LayerMask groundMask;
-        [SerializeField] private LayerMask clickableMask = -1;  // ÉèÎª-1¼ì²âËùÓĞ²ã¼¶
+        [SerializeField] private LayerMask clickableMask = -1;  // è®¾ä¸º-1æ£€æµ‹æ‰€æœ‰å±‚çº§
         [SerializeField] private float rayLength = 100f;
         [SerializeField] private bool showDebugRay = true;
-        [SerializeField] private bool enableContinuousDebug = true;  // ³ÖĞødebugÊä³ö
+        [SerializeField] private bool enableContinuousDebug = true;  // æŒç»­debugè¾“å‡º
 
-        [Header("³¤°´µã»÷ÉèÖÃ")]
-        [SerializeField] private float holdTime = 2f;              // ³¤°´Ê±¼ä
+        [Header("é•¿æŒ‰ç‚¹å‡»è®¾ç½®")]
+        [SerializeField] private float holdTime = 2f;              // é•¿æŒ‰æ—¶é—´
 
         private CharacterController controller;
         private Camera cam;
         private CameraController cameraController;
         private Vector3 velocity;
         private bool isGrounded;
-        private GameObject currentDetectedObject;  // ¸ÄÎª¼ì²âËùÓĞÎïÌå
-        private BugObject currentDetectedBugObject; // ±£Áô¶ÔBugObjectµÄÒıÓÃ
+        private GameObject currentDetectedObject;  // æ”¹ä¸ºæ£€æµ‹æ‰€æœ‰ç‰©ä½“
+        private BugObject currentDetectedBugObject; // ä¿ç•™å¯¹BugObjectçš„å¼•ç”¨
 
-        // ³¤°´Ïà¹Ø±äÁ¿
+        // é•¿æŒ‰ç›¸å…³å˜é‡
         private bool isHolding = false;
         private float holdStartTime = 0f;
         private Coroutine holdCoroutine;
 
-        // ÊÂ¼ş
+        // äº‹ä»¶
         public static event System.Action<BugObject> OnBugObjectClicked;
         public static event System.Action<Vector3> OnEmptySpaceClicked;
-        public static event System.Action<GameObject, float> OnObjectHoldProgress;  // ¸ÄÎªGameObjectºÍ½ø¶È(0-1)
+        public static event System.Action<GameObject, float> OnObjectHoldProgress;  // æ”¹ä¸ºGameObjectå’Œè¿›åº¦(0-1)
         public static event System.Action OnHoldCancelled;
 
-        // ĞÂÔöÊÂ¼ş£º¼ì²âÍê³É
-        public static event System.Action<GameObject, bool> OnObjectDetectionComplete; // (¼ì²âµÄÎïÌå, ÊÇ·ñÊÇÕæµÄbug)
+        // æ–°å¢äº‹ä»¶ï¼šæ£€æµ‹å®Œæˆ
+        public static event System.Action<GameObject, bool> OnObjectDetectionComplete; // (æ£€æµ‹çš„ç‰©ä½“, æ˜¯å¦æ˜¯çœŸçš„bug)
 
-        #region UnityÉúÃüÖÜÆÚ
+        #region Unityç”Ÿå‘½å‘¨æœŸ
 
         private void Awake()
         {
@@ -52,7 +52,7 @@ namespace BugFixerGame
             cam = Camera.main;
             if (cam == null)
             {
-                // Èç¹ûÃ»ÓĞÖ÷Ïà»ú£¬³¢ÊÔÕÒ×ÓÎïÌåÖĞµÄÏà»ú
+                // å¦‚æœæ²¡æœ‰ä¸»ç›¸æœºï¼Œå°è¯•æ‰¾å­ç‰©ä½“ä¸­çš„ç›¸æœº
                 cam = GetComponentInChildren<Camera>();
             }
 
@@ -70,21 +70,21 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ÒÆ¶¯¿ØÖÆ
+        #region ç§»åŠ¨æ§åˆ¶
 
         private void HandleMovement()
         {
-            // µØÃæ¼ì²â
+            // åœ°é¢æ£€æµ‹
             isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance + 0.1f, groundMask.value);
 
             if (isGrounded && velocity.y < 0f)
                 velocity.y = -2f;
 
-            // »ñÈ¡ÊäÈë
+            // è·å–è¾“å…¥
             float h = Input.GetAxis("Horizontal");
             float v = Input.GetAxis("Vertical");
 
-            // ¼ÆËãÒÆ¶¯·½Ïò£¨»ùÓÚÏà»ú³¯Ïò£©
+            // è®¡ç®—ç§»åŠ¨æ–¹å‘ï¼ˆåŸºäºç›¸æœºæœå‘ï¼‰
             Vector3 forward = cam.transform.forward;
             Vector3 right = cam.transform.right;
             forward.y = 0f;
@@ -94,11 +94,11 @@ namespace BugFixerGame
 
             Vector3 move = (forward * v + right * h) * moveSpeed;
 
-            // Ó¦ÓÃÖØÁ¦
+            // åº”ç”¨é‡åŠ›
             velocity.y += gravity * Time.deltaTime;
             move.y = velocity.y;
 
-            // ÒÆ¶¯½ÇÉ«
+            // ç§»åŠ¨è§’è‰²
             controller.Move(move * Time.deltaTime);
         }
 
@@ -112,7 +112,7 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ÉäÏß¼ì²â
+        #region å°„çº¿æ£€æµ‹
 
         private void HandleRayDetection()
         {
@@ -125,53 +125,53 @@ namespace BugFixerGame
                 Debug.DrawRay(ray.origin, ray.direction * rayLength, rayColor);
             }
 
-            // Çå³ıÖ®Ç°¼ì²âµ½µÄ¶ÔÏó
+            // æ¸…é™¤ä¹‹å‰æ£€æµ‹åˆ°çš„å¯¹è±¡
             GameObject previousObject = currentDetectedObject;
             currentDetectedObject = null;
             currentDetectedBugObject = null;
 
-            // ÉäÏß¼ì²â - Ê¹ÓÃ¶àÖÖ·½Ê½È·±£ÄÜ¼ì²âµ½ÎïÌå
+            // å°„çº¿æ£€æµ‹ - ä½¿ç”¨å¤šç§æ–¹å¼ç¡®ä¿èƒ½æ£€æµ‹åˆ°ç‰©ä½“
             RaycastHit hit;
             bool hitSomething = false;
 
-            // ·½·¨1£º¼ì²âTriggerºÍÆÕÍ¨Åö×²Ìå
+            // æ–¹æ³•1ï¼šæ£€æµ‹Triggerå’Œæ™®é€šç¢°æ’ä½“
             if (Physics.Raycast(ray, out hit, rayLength, clickableMask.value, QueryTriggerInteraction.Collide))
             {
                 hitSomething = true;
                 currentDetectedObject = hit.collider.gameObject;
 
-                // ³ÖĞødebugÊä³ö
+                // æŒç»­debugè¾“å‡º
                 if (enableContinuousDebug)
                 {
-                    Debug.Log($"[ÉäÏß¼ì²â] ÃüÖĞÎïÌå: {hit.collider.name}, Layer: {hit.collider.gameObject.layer}, Distance: {hit.distance:F2}, IsTrigger: {hit.collider.isTrigger}");
+                    Debug.Log($"[å°„çº¿æ£€æµ‹] å‘½ä¸­ç‰©ä½“: {hit.collider.name}, Layer: {hit.collider.gameObject.layer}, Distance: {hit.distance:F2}, IsTrigger: {hit.collider.isTrigger}");
                 }
 
-                // ¼ì²éÊÇ·ñÓĞBugObject×é¼ş
+                // æ£€æŸ¥æ˜¯å¦æœ‰BugObjectç»„ä»¶
                 BugObject bug = hit.collider.GetComponent<BugObject>();
                 if (bug != null)
                 {
                     currentDetectedBugObject = bug;
                     if (enableContinuousDebug)
                     {
-                        Debug.Log($"[BugObject¼ì²â] ÕÒµ½BugObject: {bug.name}, ÀàĞÍ: {bug.GetBugType()}, ¼¤»î×´Ì¬: {bug.IsBugActive()}");
+                        Debug.Log($"[BugObjectæ£€æµ‹] æ‰¾åˆ°BugObject: {bug.name}, ç±»å‹: {bug.GetBugType()}, æ¿€æ´»çŠ¶æ€: {bug.IsBugActive()}");
                     }
                 }
                 else
                 {
                     if (enableContinuousDebug)
                     {
-                        Debug.Log($"[ÉäÏß¼ì²â] ÎïÌå {hit.collider.name} Ã»ÓĞBugObject×é¼ş");
+                        Debug.Log($"[å°„çº¿æ£€æµ‹] ç‰©ä½“ {hit.collider.name} æ²¡æœ‰BugObjectç»„ä»¶");
                     }
                 }
             }
 
-            // Èç¹ûµÚÒ»ÖÖ·½·¨Ã»¼ì²âµ½£¬³¢ÊÔºöÂÔTriggerµÄ¼ì²â
+            // å¦‚æœç¬¬ä¸€ç§æ–¹æ³•æ²¡æ£€æµ‹åˆ°ï¼Œå°è¯•å¿½ç•¥Triggerçš„æ£€æµ‹
             if (!hitSomething && Physics.Raycast(ray, out hit, rayLength, clickableMask.value, QueryTriggerInteraction.Ignore))
             {
                 hitSomething = true;
                 currentDetectedObject = hit.collider.gameObject;
 
-                // ¼ì²éBugObject×é¼ş
+                // æ£€æŸ¥BugObjectç»„ä»¶
                 BugObject bug = hit.collider.GetComponent<BugObject>();
                 if (bug != null)
                 {
@@ -180,43 +180,43 @@ namespace BugFixerGame
 
                 if (enableContinuousDebug)
                 {
-                    Debug.Log($"[ÉäÏß¼ì²â-ºöÂÔTrigger] ÃüÖĞÎïÌå: {hit.collider.name}, Layer: {hit.collider.gameObject.layer}");
+                    Debug.Log($"[å°„çº¿æ£€æµ‹-å¿½ç•¥Trigger] å‘½ä¸­ç‰©ä½“: {hit.collider.name}, Layer: {hit.collider.gameObject.layer}");
                 }
             }
 
-            // Èç¹ûÊ²Ã´¶¼Ã»¼ì²âµ½
+            // å¦‚æœä»€ä¹ˆéƒ½æ²¡æ£€æµ‹åˆ°
             if (!hitSomething && enableContinuousDebug)
             {
-                Debug.Log($"[ÉäÏß¼ì²â] Î´ÃüÖĞÈÎºÎÎïÌå - RayÆğµã: {ray.origin:F2}, ·½Ïò: {ray.direction:F2}, ¾àÀë: {rayLength}, LayerMask: {clickableMask.value}");
+                Debug.Log($"[å°„çº¿æ£€æµ‹] æœªå‘½ä¸­ä»»ä½•ç‰©ä½“ - Rayèµ·ç‚¹: {ray.origin:F2}, æ–¹å‘: {ray.direction:F2}, è·ç¦»: {rayLength}, LayerMask: {clickableMask.value}");
             }
 
-            // Èç¹ûÖ®Ç°ÓĞ¶ÔÏóµ«ÏÖÔÚÃ»ÓĞ£¬È¡Ïû³¤°´²Ù×÷
+            // å¦‚æœä¹‹å‰æœ‰å¯¹è±¡ä½†ç°åœ¨æ²¡æœ‰ï¼Œå–æ¶ˆé•¿æŒ‰æ“ä½œ
             if (previousObject != null && currentDetectedObject == null && isHolding)
             {
-                Debug.Log("[³¤°´Ïà¹Ø] Ê§È¥¶ÔÏóÄ¿±ê£¬È¡Ïû³¤°´²Ù×÷");
+                Debug.Log("[é•¿æŒ‰ç›¸å…³] å¤±å»å¯¹è±¡ç›®æ ‡ï¼Œå–æ¶ˆé•¿æŒ‰æ“ä½œ");
                 CancelHold();
             }
-            // Èç¹û¼ì²âµ½²»Í¬µÄ¶ÔÏó£¬Ò²È¡Ïûµ±Ç°³¤°´
+            // å¦‚æœæ£€æµ‹åˆ°ä¸åŒçš„å¯¹è±¡ï¼Œä¹Ÿå–æ¶ˆå½“å‰é•¿æŒ‰
             else if (previousObject != currentDetectedObject && isHolding)
             {
-                Debug.Log("[³¤°´Ïà¹Ø] ¼ì²âµ½ĞÂ¶ÔÏó£¬È¡Ïûµ±Ç°³¤°´²Ù×÷");
+                Debug.Log("[é•¿æŒ‰ç›¸å…³] æ£€æµ‹åˆ°æ–°å¯¹è±¡ï¼Œå–æ¶ˆå½“å‰é•¿æŒ‰æ“ä½œ");
                 CancelHold();
             }
         }
 
         #endregion
 
-        #region µã»÷ÊäÈë´¦Àí
+        #region ç‚¹å‡»è¾“å…¥å¤„ç†
 
         private void HandleClickInput()
         {
-            // Êó±ê°´ÏÂ¿ªÊ¼³¤°´
+            // é¼ æ ‡æŒ‰ä¸‹å¼€å§‹é•¿æŒ‰
             if (Input.GetMouseButtonDown(0))
             {
                 StartHold();
             }
 
-            // Êó±êËÉ¿ªÈ¡Ïû³¤°´
+            // é¼ æ ‡æ¾å¼€å–æ¶ˆé•¿æŒ‰
             if (Input.GetMouseButtonUp(0))
             {
                 if (isHolding)
@@ -239,16 +239,16 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ³¤°´Ïà¹Ø
+        #region é•¿æŒ‰ç›¸å…³
 
         private void StartHold()
         {
             if (isHolding) return;
 
-            // Ã»ÓĞ¼ì²âµ½ÈÎºÎÎïÌåÊ±µã»÷¿Õ°×´¦
+            // æ²¡æœ‰æ£€æµ‹åˆ°ä»»ä½•ç‰©ä½“æ—¶ç‚¹å‡»ç©ºç™½å¤„
             if (currentDetectedObject == null)
             {
-                Debug.Log("[³¤°´Ïà¹Ø] Ã»ÓĞ¼ì²âµ½ÎïÌå£¬´¦Àí¿Õ°×µã»÷");
+                Debug.Log("[é•¿æŒ‰ç›¸å…³] æ²¡æœ‰æ£€æµ‹åˆ°ç‰©ä½“ï¼Œå¤„ç†ç©ºç™½ç‚¹å‡»");
                 HandleEmptyClick();
                 return;
             }
@@ -256,9 +256,9 @@ namespace BugFixerGame
             isHolding = true;
             holdStartTime = Time.time;
 
-            Debug.Log($"[³¤°´Ïà¹Ø] ¿ªÊ¼³¤°´¼ì²âÎïÌå: {currentDetectedObject.name}");
+            Debug.Log($"[é•¿æŒ‰ç›¸å…³] å¼€å§‹é•¿æŒ‰æ£€æµ‹ç‰©ä½“: {currentDetectedObject.name}");
 
-            // ¿ªÊ¼³¤°´Ğ­³Ì
+            // å¼€å§‹é•¿æŒ‰åç¨‹
             if (holdCoroutine != null)
                 StopCoroutine(holdCoroutine);
             holdCoroutine = StartCoroutine(HoldCoroutine());
@@ -269,21 +269,21 @@ namespace BugFixerGame
             float elapsed = 0f;
             float lastLogTime = 0f;
 
-            Debug.Log("[³¤°´Ïà¹Ø] ³¤°´Ğ­³Ì¿ªÊ¼");
+            Debug.Log("[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰åç¨‹å¼€å§‹");
 
             while (elapsed < holdTime && isHolding)
             {
                 elapsed = Time.time - holdStartTime;
                 float progress = elapsed / holdTime;
 
-                // Ã¿0.5ÃëÊä³öÒ»´Î½ø¶È
+                // æ¯0.5ç§’è¾“å‡ºä¸€æ¬¡è¿›åº¦
                 if (elapsed - lastLogTime >= 0.5f)
                 {
-                    Debug.Log($"[³¤°´Ïà¹Ø] ³¤°´½ø¶È: {progress:P0} ({elapsed:F1}s / {holdTime:F1}s)");
+                    Debug.Log($"[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰è¿›åº¦: {progress:P0} ({elapsed:F1}s / {holdTime:F1}s)");
                     lastLogTime = elapsed;
                 }
 
-                // ·¢ËÍ½ø¶ÈÊÂ¼ş
+                // å‘é€è¿›åº¦äº‹ä»¶
                 if (currentDetectedObject != null)
                 {
                     OnObjectHoldProgress?.Invoke(currentDetectedObject, progress);
@@ -292,15 +292,15 @@ namespace BugFixerGame
                 yield return null;
             }
 
-            // ³¤°´Íê³É
+            // é•¿æŒ‰å®Œæˆ
             if (isHolding && currentDetectedObject != null)
             {
-                Debug.Log("[³¤°´Ïà¹Ø] ³¤°´Íê³É£¡¿ªÊ¼¼ì²âÎïÌå");
+                Debug.Log("[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰å®Œæˆï¼å¼€å§‹æ£€æµ‹ç‰©ä½“");
                 CompleteObjectDetection();
             }
             else
             {
-                Debug.Log("[³¤°´Ïà¹Ø] ³¤°´Ğ­³Ì½áÊø£¬µ«Ìõ¼ş²»Âú×ã£¨¿ÉÄÜ±»È¡ÏûÁË£©");
+                Debug.Log("[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰åç¨‹ç»“æŸï¼Œä½†æ¡ä»¶ä¸æ»¡è¶³ï¼ˆå¯èƒ½è¢«å–æ¶ˆäº†ï¼‰");
             }
         }
 
@@ -308,44 +308,44 @@ namespace BugFixerGame
         {
             if (currentDetectedObject == null)
             {
-                Debug.LogError("[³¤°´Ïà¹Ø] CompleteObjectDetection: currentDetectedObjectÎªnull");
+                Debug.LogError("[é•¿æŒ‰ç›¸å…³] CompleteObjectDetection: currentDetectedObjectä¸ºnull");
                 return;
             }
 
-            Debug.Log($"[³¤°´Ïà¹Ø] ³¤°´Íê³É£¬¿ªÊ¼¼ì²âÎïÌå: {currentDetectedObject.name}");
+            Debug.Log($"[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰å®Œæˆï¼Œå¼€å§‹æ£€æµ‹ç‰©ä½“: {currentDetectedObject.name}");
 
-            // ÅĞ¶Ï¼ì²âµÄÎïÌåÊÇ·ñÕæµÄÊÇbug
+            // åˆ¤æ–­æ£€æµ‹çš„ç‰©ä½“æ˜¯å¦çœŸçš„æ˜¯bug
             bool isActualBug = currentDetectedBugObject != null && currentDetectedBugObject.IsBugActive();
 
-            Debug.Log($"[¼ì²â½á¹û] ÎïÌå: {currentDetectedObject.name}, ÊÇ·ñÎªÕæbug: {isActualBug}");
+            Debug.Log($"[æ£€æµ‹ç»“æœ] ç‰©ä½“: {currentDetectedObject.name}, æ˜¯å¦ä¸ºçœŸbug: {isActualBug}");
 
-            // ·¢ËÍ¼ì²âÍê³ÉÊÂ¼ş¸øGameManager´¦ÀíÆÀ·Ö
+            // å‘é€æ£€æµ‹å®Œæˆäº‹ä»¶ç»™GameManagerå¤„ç†è¯„åˆ†
             OnObjectDetectionComplete?.Invoke(currentDetectedObject, isActualBug);
 
-            // Èç¹û¼ì²âµ½ÕæµÄbug£¬´¥·¢bugĞŞ¸´
+            // å¦‚æœæ£€æµ‹åˆ°çœŸçš„bugï¼Œè§¦å‘bugä¿®å¤
             if (isActualBug)
             {
-                Debug.Log("[¼ì²â½á¹û] ¼ì²âµ½Õæbug£¬´¥·¢ĞŞ¸´Á÷³Ì");
+                Debug.Log("[æ£€æµ‹ç»“æœ] æ£€æµ‹åˆ°çœŸbugï¼Œè§¦å‘ä¿®å¤æµç¨‹");
                 OnBugObjectClicked?.Invoke(currentDetectedBugObject);
                 currentDetectedBugObject.OnClickedByPlayer();
             }
             else
             {
-                Debug.Log("[¼ì²â½á¹û] ¼ì²âµ½µÄ²»ÊÇbug»òÃ»ÓĞ¼¤»îµÄbug");
+                Debug.Log("[æ£€æµ‹ç»“æœ] æ£€æµ‹åˆ°çš„ä¸æ˜¯bugæˆ–æ²¡æœ‰æ¿€æ´»çš„bug");
             }
 
-            // ÖØÖÃ³¤°´×´Ì¬
+            // é‡ç½®é•¿æŒ‰çŠ¶æ€
             isHolding = false;
             holdCoroutine = null;
 
-            Debug.Log("[³¤°´Ïà¹Ø] ÎïÌå¼ì²âµ÷ÓÃÍê³É");
+            Debug.Log("[é•¿æŒ‰ç›¸å…³] ç‰©ä½“æ£€æµ‹è°ƒç”¨å®Œæˆ");
         }
 
         private void CancelHold()
         {
             if (!isHolding) return;
 
-            Debug.Log($"[³¤°´Ïà¹Ø] ³¤°´±»È¡Ïû - µ±Ç°½ø¶È: {GetHoldProgress():P0}");
+            Debug.Log($"[é•¿æŒ‰ç›¸å…³] é•¿æŒ‰è¢«å–æ¶ˆ - å½“å‰è¿›åº¦: {GetHoldProgress():P0}");
 
             isHolding = false;
 
@@ -355,7 +355,7 @@ namespace BugFixerGame
                 holdCoroutine = null;
             }
 
-            // ·¢ËÍÈ¡ÏûÊÂ¼ş
+            // å‘é€å–æ¶ˆäº‹ä»¶
             OnHoldCancelled?.Invoke();
         }
 
@@ -364,22 +364,22 @@ namespace BugFixerGame
             Vector3 screenCenter = new Vector3(Screen.width / 2f, Screen.height / 2f);
             Ray ray = cam.ScreenPointToRay(screenCenter);
 
-            // ³¢ÊÔÊ¹ÓÃQueryTriggerInteraction.CollideÀ´±£Ö¤Ò»ÖÂĞÔ
+            // å°è¯•ä½¿ç”¨QueryTriggerInteraction.Collideæ¥ä¿è¯ä¸€è‡´æ€§
             if (Physics.Raycast(ray, out RaycastHit hit, rayLength, clickableMask.value, QueryTriggerInteraction.Collide))
             {
                 OnEmptySpaceClicked?.Invoke(hit.point);
-                Debug.Log($"µã»÷ÁË¿Õ°×ÇøÓò: {hit.collider.name}");
+                Debug.Log($"ç‚¹å‡»äº†ç©ºç™½åŒºåŸŸ: {hit.collider.name}");
             }
             else
             {
                 OnEmptySpaceClicked?.Invoke(ray.origin + ray.direction * rayLength);
-                Debug.Log("µã»÷ÁËÍêÈ«¿Õ°×µÄÇøÓò");
+                Debug.Log("ç‚¹å‡»äº†å®Œå…¨ç©ºç™½çš„åŒºåŸŸ");
             }
         }
 
         #endregion
 
-        #region ¹«¹²½Ó¿Ú
+        #region å…¬å…±æ¥å£
 
         public GameObject GetCurrentDetectedObject() => currentDetectedObject;
 
@@ -406,9 +406,9 @@ namespace BugFixerGame
 
         #endregion
 
-        #region µ÷ÊÔ¹¦ÄÜ
+        #region è°ƒè¯•åŠŸèƒ½
 
-        [Header("µ÷ÊÔ")]
+        [Header("è°ƒè¯•")]
         [SerializeField] private bool showDebugGUI = true;
 
         private void OnGUI()
@@ -418,19 +418,19 @@ namespace BugFixerGame
             GUILayout.BeginArea(new Rect(10, Screen.height - 250, 400, 240));
             GUILayout.Label("=== Player Debug ===");
 
-            GUILayout.Label($"µØÃæ×´Ì¬: {(isGrounded ? "×ÅµØ" : "¿ÕÖĞ")}");
-            GUILayout.Label($"ÒÆ¶¯ËÙ¶È: {controller.velocity.magnitude:F2}");
-            GUILayout.Label($"¼ì²âµ½ÎïÌå: {(currentDetectedObject ? currentDetectedObject.name : "ÎŞ")}");
-            GUILayout.Label($"¼ì²âµ½Bug: {(currentDetectedBugObject ? currentDetectedBugObject.name : "ÎŞ")}");
-            GUILayout.Label($"Bug¼¤»î×´Ì¬: {(currentDetectedBugObject ? currentDetectedBugObject.IsBugActive().ToString() : "N/A")}");
-            GUILayout.Label($"³¤°´×´Ì¬: {(isHolding ? "³¤°´ÖĞ" : "Î´°´ÏÂ")}");
+            GUILayout.Label($"åœ°é¢çŠ¶æ€: {(isGrounded ? "ç€åœ°" : "ç©ºä¸­")}");
+            GUILayout.Label($"ç§»åŠ¨é€Ÿåº¦: {controller.velocity.magnitude:F2}");
+            GUILayout.Label($"æ£€æµ‹åˆ°ç‰©ä½“: {(currentDetectedObject ? currentDetectedObject.name : "æ— ")}");
+            GUILayout.Label($"æ£€æµ‹åˆ°Bug: {(currentDetectedBugObject ? currentDetectedBugObject.name : "æ— ")}");
+            GUILayout.Label($"Bugæ¿€æ´»çŠ¶æ€: {(currentDetectedBugObject ? currentDetectedBugObject.IsBugActive().ToString() : "N/A")}");
+            GUILayout.Label($"é•¿æŒ‰çŠ¶æ€: {(isHolding ? "é•¿æŒ‰ä¸­" : "æœªæŒ‰ä¸‹")}");
 
             if (isHolding)
             {
                 float progress = GetHoldProgress();
-                GUILayout.Label($"³¤°´½ø¶È: {progress:P0}");
+                GUILayout.Label($"é•¿æŒ‰è¿›åº¦: {progress:P0}");
 
-                // ÏÔÊ¾½ø¶ÈÌõ
+                // æ˜¾ç¤ºè¿›åº¦æ¡
                 Rect progressRect = GUILayoutUtility.GetRect(200, 20);
                 GUI.Box(progressRect, "");
                 Rect fillRect = new Rect(progressRect.x + 2, progressRect.y + 2,
@@ -441,14 +441,14 @@ namespace BugFixerGame
             GUILayout.Space(10);
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Ç¿ÖÆ¼ì²âµ±Ç°ÎïÌå"))
+            if (GUILayout.Button("å¼ºåˆ¶æ£€æµ‹å½“å‰ç‰©ä½“"))
             {
                 if (currentDetectedObject != null)
                 {
                     CompleteObjectDetection();
                 }
             }
-            if (GUILayout.Button("È¡Ïû³¤°´"))
+            if (GUILayout.Button("å–æ¶ˆé•¿æŒ‰"))
             {
                 ForceStopHold();
             }
@@ -459,13 +459,13 @@ namespace BugFixerGame
 
         private void OnDrawGizmosSelected()
         {
-            // »æÖÆµØÃæ¼ì²âÉäÏß
+            // ç»˜åˆ¶åœ°é¢æ£€æµ‹å°„çº¿
             Gizmos.color = isGrounded ? Color.green : Color.red;
             Vector3 start = transform.position + Vector3.up * 0.1f;
             Vector3 end = start + Vector3.down * (groundCheckDistance + 0.1f);
             Gizmos.DrawLine(start, end);
 
-            // »æÖÆµ±Ç°¼ì²âÉäÏß
+            // ç»˜åˆ¶å½“å‰æ£€æµ‹å°„çº¿
             if (cam != null)
             {
                 Vector3 screenCenter = new Vector3(Screen.width / 2f, Screen.height / 2f);
