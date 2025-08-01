@@ -80,8 +80,8 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _HighLight: 64.8
-    - _HighLightEdge: 0.68
+    - _HighLight: 10.9
+    - _HighLightEdge: 0.445
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -89,8 +89,8 @@ Material:
     - _QueueControl: 0
     - _QueueOffset: 0
     - _Shading: 0.302
-    - _Shading_1: 0.191
-    - _Shading_2: 0.671
+    - _Shading_1: 0.008
+    - _Shading_2: 0.476
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
