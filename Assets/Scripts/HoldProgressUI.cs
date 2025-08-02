@@ -1,3 +1,4 @@
+ï»¿// HoldProgressUI.cs - ä½¿ç”¨Slideræ§åˆ¶çš„é•¿æŒ‰è¿›åº¦UIç³»ç»Ÿ
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -7,33 +8,36 @@ namespace BugFixerGame
 {
     public class HoldProgressUI : MonoBehaviour
     {
-        [Header("UI×é¼ş")]
+        [Header("UIç»„ä»¶")]
         [SerializeField] private GameObject progressPanel;
-        [SerializeField] private Image progressFillImage;
+        [SerializeField] private Slider progressSlider;
         [SerializeField] private TextMeshProUGUI progressText;
         [SerializeField] private TextMeshProUGUI objectNameText;
 
-        [Header("ÉèÖÃ")]
-        [SerializeField] private string progressTextFormat = "¼ì²âÖĞ... {0:P0}";
-        [SerializeField] private Color progressColor = Color.green;
-        [SerializeField] private Color bugProgressColor = Color.red;           // bugÎïÌå¼ì²âÊ±µÄÑÕÉ«
-        [SerializeField] private Color normalProgressColor = Color.blue;       // ÆÕÍ¨ÎïÌå¼ì²âÊ±µÄÑÕÉ«
+        [Header("è®¾ç½®")]
+        [SerializeField] private string progressTextFormat = "æ£€æµ‹ä¸­... {0:P0}";
         [SerializeField] private AnimationCurve progressCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
-        [Header("¶¯»­")]
+        [Header("åŠ¨ç”»")]
         [SerializeField] private float fadeTime = 0.2f;
         [SerializeField] private Vector3 scaleFrom = new Vector3(0.8f, 0.8f, 1f);
         [SerializeField] private Vector3 scaleTo = Vector3.one;
 
-        private CanvasGroup canvasGroup;
-        private GameObject currentObject;    // ¸ÄÎª¼ì²âÈÎºÎGameObject
-        private BugObject currentBugObject;  // Èç¹ûÊÇBugObject£¬±£´æÒıÓÃ
-        private Coroutine fadeCoroutine;
+        [Header("Sliderè®¾ç½®")]
+        [SerializeField] private bool animateSliderTransition = true;   // æ˜¯å¦å¯ç”¨æ»‘å—è¿‡æ¸¡åŠ¨ç”»
+        [SerializeField] private float sliderTransitionSpeed = 5f;      // æ»‘å—è¿‡æ¸¡é€Ÿåº¦
 
-        // µ¥Àı
+        private CanvasGroup canvasGroup;
+        private GameObject currentObject;    // å½“å‰æ£€æµ‹çš„GameObject
+        private BugObject currentBugObject;  // å¦‚æœæ˜¯BugObjectï¼Œä¿å­˜å¼•ç”¨
+        private Coroutine fadeCoroutine;
+        private float targetSliderValue = 0f;  // ç›®æ ‡æ»‘å—å€¼
+        private bool isUpdatingSlider = false; // æ˜¯å¦æ­£åœ¨æ›´æ–°æ»‘å—
+
+        // å•ä¾‹
         public static HoldProgressUI Instance { get; private set; }
 
-        #region UnityÉúÃüÖÜÆÚ
+        #region Unityç”Ÿå‘½å‘¨æœŸ
 
         private void Awake()
         {
@@ -50,48 +54,57 @@ namespace BugFixerGame
 
         private void OnEnable()
         {
-            // ¶©ÔÄPlayerÊÂ¼ş - ¸ÄÎªĞÂµÄÊÂ¼ş
+            // è®¢é˜…Playeräº‹ä»¶ - å½“å‰çš„äº‹ä»¶
             Player.OnObjectHoldProgress += ShowProgress;
             Player.OnHoldCancelled += HideProgress;
         }
 
         private void OnDisable()
         {
-            // È¡Ïû¶©ÔÄ
+            // å–æ¶ˆè®¢é˜…
             Player.OnObjectHoldProgress -= ShowProgress;
             Player.OnHoldCancelled -= HideProgress;
         }
 
         #endregion
 
-        #region ³õÊ¼»¯
+        #region åˆå§‹åŒ–
 
         private void InitializeUI()
         {
-            // »ñÈ¡CanvasGroup×é¼ş£¬Èç¹ûÃ»ÓĞÔòÌí¼Ó
+            // è·å–CanvasGroupç»„ä»¶ï¼Œå¦‚æœæ²¡æœ‰åˆ™æ·»åŠ 
             canvasGroup = GetComponent<CanvasGroup>();
             if (canvasGroup == null)
             {
                 canvasGroup = gameObject.AddComponent<CanvasGroup>();
             }
 
-            // ³õÊ¼»¯½ø¶ÈÌõÑÕÉ«
-            if (progressFillImage != null)
+            // åˆå§‹åŒ–è¿›åº¦æ»‘å—
+            if (progressSlider != null)
             {
-                progressFillImage.color = progressColor;
+                progressSlider.minValue = 0f;
+                progressSlider.maxValue = 1f;
+                progressSlider.value = 0f;
+                progressSlider.interactable = false; // ç¦ç”¨ç”¨æˆ·äº¤äº’
+            }
+            else
+            {
+                Debug.LogError("âŒ HoldProgressUI: progressSlideræœªè®¾ç½®ï¼è¯·åœ¨Inspectorä¸­é…ç½®Sliderå¼•ç”¨ã€‚");
             }
 
-            // ³õÊ¼×´Ì¬Òş²Ø
+            // åˆå§‹çŠ¶æ€éšè—
             HideProgressImmediate();
+
+            Debug.Log("âœ… HoldProgressUI åˆå§‹åŒ–å®Œæˆ");
         }
 
         #endregion
 
-        #region ½ø¶ÈÏÔÊ¾
+        #region è¿›åº¦æ˜¾ç¤º
 
         private void ShowProgress(GameObject detectedObject, float progress)
         {
-            // Èç¹ûÊÇĞÂµÄ¶ÔÏó£¬ÖØĞÂÏÔÊ¾UI
+            // å¦‚æœæ˜¯æ–°çš„å¯¹è±¡ï¼Œé‡æ–°æ˜¾ç¤ºè¿›åº¦é¢æ¿
             if (currentObject != detectedObject)
             {
                 currentObject = detectedObject;
@@ -99,7 +112,7 @@ namespace BugFixerGame
                 ShowProgressPanel();
             }
 
-            // ¸üĞÂ½ø¶È
+            // æ›´æ–°è¿›åº¦
             UpdateProgress(progress);
         }
 
@@ -108,16 +121,13 @@ namespace BugFixerGame
             if (progressPanel != null)
                 progressPanel.SetActive(true);
 
-            // ÉèÖÃÎïÌåÃû³ÆºÍ¼ì²â×´Ì¬
+            // è®¾ç½®ç‰©ä½“åç§°å’Œæ£€æµ‹çŠ¶æ€
             if (objectNameText != null && currentObject != null)
             {
                 objectNameText.text = GetObjectDisplayName(currentObject);
             }
 
-            // ¸ù¾İÎïÌåÀàĞÍÉèÖÃ½ø¶ÈÌõÑÕÉ«
-            UpdateProgressColor();
-
-            // µ­Èë¶¯»­
+            // æ·¡å…¥åŠ¨ç”»
             if (fadeCoroutine != null)
                 StopCoroutine(fadeCoroutine);
             fadeCoroutine = StartCoroutine(FadeIn());
@@ -125,42 +135,56 @@ namespace BugFixerGame
 
         private void UpdateProgress(float progress)
         {
-            // Ó¦ÓÃ¶¯»­ÇúÏß
+            // åº”ç”¨åŠ¨ç”»æ›²çº¿
             float curvedProgress = progressCurve.Evaluate(progress);
 
-            // ¸üĞÂ½ø¶ÈÌõ
-            if (progressFillImage != null)
+            // æ›´æ–°ç›®æ ‡æ»‘å—å€¼
+            targetSliderValue = curvedProgress;
+
+            // æ›´æ–°è¿›åº¦æ»‘å—
+            if (progressSlider != null)
             {
-                progressFillImage.fillAmount = curvedProgress;
+                if (animateSliderTransition && !isUpdatingSlider)
+                {
+                    // å¯åŠ¨æ»‘å—è¿‡æ¸¡åŠ¨ç”»
+                    StartCoroutine(AnimateSliderToTarget());
+                }
+                else
+                {
+                    // ç›´æ¥è®¾ç½®å€¼
+                    progressSlider.value = curvedProgress;
+                }
             }
 
-            // ¸üĞÂÎÄ±¾
+            // æ›´æ–°æ–‡æœ¬
             if (progressText != null)
             {
                 progressText.text = string.Format(progressTextFormat, progress);
             }
         }
 
-        private void UpdateProgressColor()
+        /// <summary>
+        /// æ»‘å—è¿‡æ¸¡åŠ¨ç”»åç¨‹
+        /// </summary>
+        private IEnumerator AnimateSliderToTarget()
         {
-            if (progressFillImage == null) return;
+            if (progressSlider == null) yield break;
 
-            // ¸ù¾İÎïÌåÀàĞÍÉèÖÃ²»Í¬ÑÕÉ«
-            if (currentBugObject != null && currentBugObject.IsBugActive())
+            isUpdatingSlider = true;
+            float startValue = progressSlider.value;
+            float elapsedTime = 0f;
+            float animationTime = Mathf.Abs(targetSliderValue - startValue) / sliderTransitionSpeed;
+
+            while (elapsedTime < animationTime)
             {
-                // Èç¹ûÊÇ¼¤»îµÄbugÎïÌå£¬Ê¹ÓÃbugÑÕÉ«
-                progressFillImage.color = bugProgressColor;
+                elapsedTime += Time.unscaledDeltaTime;
+                float t = elapsedTime / animationTime;
+                progressSlider.value = Mathf.Lerp(startValue, targetSliderValue, t);
+                yield return null;
             }
-            else if (currentBugObject != null)
-            {
-                // Èç¹ûÊÇÎ´¼¤»îµÄbugÎïÌå£¬Ê¹ÓÃÆÕÍ¨ÑÕÉ«
-                progressFillImage.color = normalProgressColor;
-            }
-            else
-            {
-                // Èç¹ûÊÇÆÕÍ¨ÎïÌå£¬Ê¹ÓÃÆÕÍ¨ÑÕÉ«
-                progressFillImage.color = normalProgressColor;
-            }
+
+            progressSlider.value = targetSliderValue;
+            isUpdatingSlider = false;
         }
 
         private void HideProgress()
@@ -168,7 +192,15 @@ namespace BugFixerGame
             currentObject = null;
             currentBugObject = null;
 
-            // µ­³ö¶¯»­
+            // é‡ç½®æ»‘å—å€¼
+            if (progressSlider != null)
+            {
+                progressSlider.value = 0f;
+            }
+            targetSliderValue = 0f;
+            isUpdatingSlider = false;
+
+            // æ·¡å‡ºåŠ¨ç”»
             if (fadeCoroutine != null)
                 StopCoroutine(fadeCoroutine);
             fadeCoroutine = StartCoroutine(FadeOut());
@@ -182,19 +214,24 @@ namespace BugFixerGame
             if (canvasGroup != null)
                 canvasGroup.alpha = 0f;
 
+            if (progressSlider != null)
+                progressSlider.value = 0f;
+
             currentObject = null;
             currentBugObject = null;
+            targetSliderValue = 0f;
+            isUpdatingSlider = false;
         }
 
         #endregion
 
-        #region ¶¯»­
+        #region åŠ¨ç”»
 
         private IEnumerator FadeIn()
         {
             if (canvasGroup == null) yield break;
 
-            // ÉèÖÃ³õÊ¼×´Ì¬
+            // è®¾ç½®åˆå§‹çŠ¶æ€
             canvasGroup.alpha = 0f;
             transform.localScale = scaleFrom;
 
@@ -243,79 +280,64 @@ namespace BugFixerGame
 
         #endregion
 
-        #region ¸¨Öú·½·¨
+        #region è¾…åŠ©æ–¹æ³•
 
         private string GetObjectDisplayName(GameObject obj)
         {
-            if (obj == null) return "Î´ÖªÎïÌå";
+            if (obj == null) return "æœªçŸ¥ç‰©ä½“";
 
             string baseName = obj.name;
             string statusText = "";
 
-            // ¼ì²éÊÇ·ñÊÇBugObject
+            // æ£€æŸ¥æ˜¯å¦æ˜¯BugObject
             BugObject bugObj = obj.GetComponent<BugObject>();
             if (bugObj != null)
             {
                 if (bugObj.IsBugActive())
                 {
-                    statusText = $" ({GetBugTypeDisplayName(bugObj.GetBugType())} - ¼¤»î)";
+                    statusText = $" ({GetBugTypeDisplayName(bugObj.GetBugType())} - æ¿€æ´»)";
                 }
                 else
                 {
-                    statusText = $" ({GetBugTypeDisplayName(bugObj.GetBugType())} - Î´¼¤»î)";
+                    statusText = $" ({GetBugTypeDisplayName(bugObj.GetBugType())} - æœªæ¿€æ´»)";
                 }
             }
             else
             {
-                statusText = " (ÆÕÍ¨ÎïÌå)";
+                statusText = " (æ™®é€šç‰©ä½“)";
             }
 
-            return $"¼ì²â: {baseName}{statusText}";
+            return $"æ£€æµ‹: {baseName}{statusText}";
         }
 
         private string GetBugTypeDisplayName(BugType bugType)
         {
             switch (bugType)
             {
-                case BugType.ObjectFlickering: return "ÎïÌåÉÁË¸";
-                case BugType.CollisionMissing: return "Åö×²È±Ê§";
-                case BugType.WrongOrMissingMaterial: return "´íÎó»òÈ±Ê§²ÄÖÊ";
-                case BugType.WrongObject: return "´íÎóÎïÌå";
-                case BugType.MissingObject: return "È±Ê§ÎïÌå";
-                case BugType.ObjectShaking: return "ÎïÌåÕğ¶¯";
-                case BugType.ObjectMovedOrClipping: return "ÎïÌåÎ»ÒÆ»ò´©Ä£";
+                case BugType.ObjectFlickering: return "ç‰©ä½“é—ªçƒ";
+                case BugType.CollisionMissing: return "ç¢°æ’ç¼ºå¤±";
+                case BugType.WrongOrMissingMaterial: return "é”™è¯¯æˆ–ç¼ºå¤±æè´¨";
+                case BugType.WrongObject: return "é”™è¯¯ç‰©ä½“";
+                case BugType.MissingObject: return "ç¼ºå¤±ç‰©ä½“";
+                case BugType.ObjectShaking: return "ç‰©ä½“éœ‡åŠ¨";
+                case BugType.ObjectMovedOrClipping: return "ç‰©ä½“ä½ç½®æˆ–ç©¿æ¨¡";
                 default: return bugType.ToString();
             }
         }
 
         #endregion
 
-        #region ¹«¹²½Ó¿Ú
-
-        public void SetProgressColor(Color color)
-        {
-            progressColor = color;
-            if (progressFillImage != null && currentBugObject == null)
-            {
-                progressFillImage.color = color;
-            }
-        }
-
-        public void SetBugProgressColor(Color color)
-        {
-            bugProgressColor = color;
-            UpdateProgressColor();
-        }
-
-        public void SetNormalProgressColor(Color color)
-        {
-            normalProgressColor = color;
-            UpdateProgressColor();
-        }
+        #region å…¬å…±æ¥å£
 
         public void SetProgressTextFormat(string format)
         {
             progressTextFormat = format;
+        }
+
+        public void SetSliderTransitionSettings(bool animate, float speed)
+        {
+            animateSliderTransition = animate;
+            sliderTransitionSpeed = speed;
         }
 
         public bool IsShowing()
@@ -338,38 +360,56 @@ namespace BugFixerGame
             return currentBugObject != null && currentBugObject.IsBugActive();
         }
 
+        public float GetCurrentSliderValue()
+        {
+            return progressSlider != null ? progressSlider.value : 0f;
+        }
+
+        public float GetTargetSliderValue()
+        {
+            return targetSliderValue;
+        }
+
+        public bool IsUpdatingSlider()
+        {
+            return isUpdatingSlider;
+        }
+
         #endregion
 
-        #region µ÷ÊÔ¹¦ÄÜ
+        #region è°ƒè¯•åŠŸèƒ½
 
-        [Header("µ÷ÊÔ")]
+        [Header("è°ƒè¯•")]
         [SerializeField] private bool showDebugInfo = false;
 
         private void OnGUI()
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(Screen.width - 350, Screen.height - 200, 330, 190));
+            GUILayout.BeginArea(new Rect(Screen.width - 380, Screen.height - 220, 360, 210));
             GUILayout.Label("=== Hold Progress UI Debug ===");
-            GUILayout.Label($"ÏÔÊ¾×´Ì¬: {IsShowing()}");
-            GUILayout.Label($"µ±Ç°ÎïÌå: {(currentObject ? currentObject.name : "ÎŞ")}");
-            GUILayout.Label($"µ±Ç°BugÎïÌå: {(currentBugObject ? currentBugObject.name : "ÎŞ")}");
-            GUILayout.Label($"¼ì²âµ½¼¤»îBug: {IsDetectingBug()}");
-            GUILayout.Label($"Í¸Ã÷¶È: {(canvasGroup ? canvasGroup.alpha.ToString("F2") : "ÎŞ")}");
+            GUILayout.Label($"æ˜¾ç¤ºçŠ¶æ€: {IsShowing()}");
+            GUILayout.Label($"å½“å‰ç‰©ä½“: {(currentObject ? currentObject.name : "æ— ")}");
+            GUILayout.Label($"å½“å‰BugObject: {(currentBugObject ? currentBugObject.name : "æ— ")}");
+            GUILayout.Label($"æ£€æµ‹åˆ°æ¿€æ´»Bug: {IsDetectingBug()}");
+            GUILayout.Label($"é€æ˜åº¦: {(canvasGroup ? canvasGroup.alpha.ToString("F2") : "æ— ")}");
+            GUILayout.Label($"æ»‘å—å½“å‰å€¼: {GetCurrentSliderValue():F2}");
+            GUILayout.Label($"æ»‘å—ç›®æ ‡å€¼: {GetTargetSliderValue():F2}");
+            GUILayout.Label($"æ»‘å—åŠ¨ç”»ä¸­: {isUpdatingSlider}");
 
-            if (GUILayout.Button("²âÊÔÏÔÊ¾½ø¶È"))
+            if (GUILayout.Button("æµ‹è¯•æ˜¾ç¤ºè¿›åº¦"))
             {
                 if (currentObject == null)
                 {
-                    // ³¢ÊÔ´´½¨²âÊÔ¶ÔÏó½øĞĞ²âÊÔ
+                    // åˆ›å»ºæµ‹è¯•å¯¹è±¡è¿›è¡Œæµ‹è¯•
                     GameObject testObj = new GameObject("TestObject");
                     StartCoroutine(TestProgressAnimation(testObj));
                 }
             }
 
-            if (GUILayout.Button("²âÊÔBugÎïÌå½ø¶È"))
+            if (GUILayout.Button("æµ‹è¯•BugObjectè¿›åº¦"))
             {
-                // ³¢ÊÔÕÒ³¡¾°ÖĞµÄBug¶ÔÏó½øĞĞ²âÊÔ
+                // å°è¯•æ‰¾åˆ°åœºæ™¯ä¸­çš„Bugå¯¹è±¡è¿›è¡Œæµ‹è¯•
                 BugObject testBug = FindObjectOfType<BugObject>();
                 if (testBug != null)
                 {
@@ -377,7 +417,7 @@ namespace BugFixerGame
                 }
             }
 
-            if (GUILayout.Button("Òş²Ø½ø¶È"))
+            if (GUILayout.Button("éšè—è¿›åº¦"))
             {
                 HideProgress();
             }
@@ -400,11 +440,115 @@ namespace BugFixerGame
 
             HideProgress();
 
-            // Èç¹ûÊÇ²âÊÔ´´½¨µÄ¶ÔÏó£¬Ïú»ÙËü
+            // å¦‚æœæ˜¯æµ‹è¯•åˆ›å»ºçš„å¯¹è±¡ï¼Œé”€æ¯å®ƒ
             if (testObj.name == "TestObject")
             {
                 DestroyImmediate(testObj);
             }
+        }
+
+        [ContextMenu("ğŸ® æµ‹è¯•æ»‘å—è¿›åº¦åŠ¨ç”»")]
+        private void TestSliderAnimation()
+        {
+            if (Application.isPlaying)
+            {
+                StartCoroutine(TestSliderAnimationCoroutine());
+            }
+        }
+
+        private IEnumerator TestSliderAnimationCoroutine()
+        {
+            GameObject testObj = new GameObject("SliderTestObject");
+
+            // æ˜¾ç¤ºè¿›åº¦é¢æ¿
+            ShowProgressPanel();
+            currentObject = testObj;
+
+            // æµ‹è¯•ä¸åŒè¿›åº¦å€¼
+            float[] testValues = { 0f, 0.25f, 0.5f, 0.75f, 1f, 0f };
+
+            foreach (float value in testValues)
+            {
+                Debug.Log($"ğŸ® æµ‹è¯•æ»‘å—å€¼: {value:P0}");
+                UpdateProgress(value);
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            HideProgress();
+            DestroyImmediate(testObj);
+        }
+
+        [ContextMenu("ğŸ” æ£€æŸ¥æ»‘å—ç»„ä»¶")]
+        private void CheckSliderComponents()
+        {
+            Debug.Log("=== æ»‘å—ç»„ä»¶æ£€æŸ¥ ===");
+            Debug.Log($"Sliderå¼•ç”¨: {(progressSlider != null ? "å·²è®¾ç½®" : "æœªè®¾ç½®")}");
+
+            if (progressSlider != null)
+            {
+                Debug.Log($"æ»‘å—å€¼èŒƒå›´: {progressSlider.minValue} - {progressSlider.maxValue}");
+                Debug.Log($"å½“å‰å€¼: {progressSlider.value}");
+                Debug.Log($"å¯äº¤äº’: {progressSlider.interactable}");
+
+                if (progressSlider.fillRect != null)
+                {
+                    var fillImage = progressSlider.fillRect.GetComponent<Image>();
+                    Debug.Log($"å¡«å……åŒºåŸŸ: {(fillImage != null ? "æœ‰æ•ˆ" : "æ— æ•ˆ")}");
+                }
+
+                if (progressSlider.handleRect != null)
+                {
+                    var handleImage = progressSlider.handleRect.GetComponent<Image>();
+                    Debug.Log($"æŠŠæ‰‹åŒºåŸŸ: {(handleImage != null ? "æœ‰æ•ˆ" : "æ— æ•ˆ")}");
+                }
+            }
+
+            Debug.Log($"åŠ¨ç”»è¿‡æ¸¡: {animateSliderTransition}");
+            Debug.Log($"è¿‡æ¸¡é€Ÿåº¦: {sliderTransitionSpeed}");
+            Debug.Log($"å½“å‰ç›®æ ‡å€¼: {targetSliderValue}");
+            Debug.Log($"æ­£åœ¨æ›´æ–°: {isUpdatingSlider}");
+        }
+
+        [ContextMenu("ğŸ”„ å¼ºåˆ¶é‡ç½®æ»‘å—")]
+        private void ForceResetSlider()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("ğŸ”„ å¼ºåˆ¶é‡ç½®æ»‘å—çŠ¶æ€");
+                HideProgressImmediate();
+
+                if (progressSlider != null)
+                {
+                    progressSlider.value = 0f;
+                }
+
+                targetSliderValue = 0f;
+                isUpdatingSlider = false;
+
+                Debug.Log("âœ… æ»‘å—é‡ç½®å®Œæˆ");
+            }
+        }
+
+        [ContextMenu("ğŸ“Š æ˜¾ç¤ºè¯¦ç»†çŠ¶æ€")]
+        private void ShowDetailedStatus()
+        {
+            Debug.Log("=== HoldProgressUI è¯¦ç»†çŠ¶æ€ ===");
+            Debug.Log($"å®ä¾‹çŠ¶æ€: {(Instance == this ? "ä¸»å®ä¾‹" : "éä¸»å®ä¾‹")}");
+            Debug.Log($"é¢æ¿æ¿€æ´»: {IsShowing()}");
+            Debug.Log($"å½“å‰æ£€æµ‹ç‰©ä½“: {(currentObject != null ? currentObject.name : "æ— ")}");
+            Debug.Log($"å½“å‰Bugç‰©ä½“: {(currentBugObject != null ? $"{currentBugObject.name} (æ¿€æ´»: {currentBugObject.IsBugActive()})" : "æ— ")}");
+            Debug.Log($"CanvasGroupé€æ˜åº¦: {(canvasGroup != null ? canvasGroup.alpha.ToString("F2") : "æ— ")}");
+            Debug.Log($"æ»‘å—ç»„ä»¶: {(progressSlider != null ? "å·²è®¾ç½®" : "æœªè®¾ç½®")}");
+
+            if (progressSlider != null)
+            {
+                Debug.Log($"æ»‘å—å½“å‰å€¼: {progressSlider.value:F3}");
+                Debug.Log($"æ»‘å—ç›®æ ‡å€¼: {targetSliderValue:F3}");
+                Debug.Log($"æ»‘å—åŠ¨ç”»çŠ¶æ€: {(isUpdatingSlider ? "æ›´æ–°ä¸­" : "ç©ºé—²")}");
+            }
+
+            Debug.Log($"è¿›åº¦æ–‡æœ¬æ ¼å¼: {progressTextFormat}");
+            Debug.Log($"åŠ¨ç”»è®¾ç½® - æ·¡å…¥æ—¶é—´: {fadeTime}s, æ»‘å—åŠ¨ç”»: {animateSliderTransition}, é€Ÿåº¦: {sliderTransitionSpeed}");
         }
 
         #endregion
