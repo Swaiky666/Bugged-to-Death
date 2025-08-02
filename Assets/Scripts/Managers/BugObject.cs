@@ -35,7 +35,7 @@ namespace BugFixerGame
         private AnimationCurve popupCurve = new AnimationCurve(
             new Keyframe(0, 0, 0, 0),
             new Keyframe(0.6f, 1.1f, 2, 2),
-            new Keyframe(1, 1, 1, 0)
+            new Keyframe(1, 1, 0, 0)
         ); // 弹出动画曲线
 
         [Header("闪烁Bug设置")]

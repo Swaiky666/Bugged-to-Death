@@ -14,14 +14,7 @@ namespace BugFixerGame
         [SerializeField] private float minVerticalAngle = -60f;
         [SerializeField] private float maxVerticalAngle = 60f;
 
-        [Header("缩放设置")]
-        [SerializeField] private bool enableZoom = true;
-        [SerializeField] private float zoomSpeed = 2f;
-        [SerializeField] private float minFieldOfView = 20f;
-        [SerializeField] private float maxFieldOfView = 80f;
-
         private float currentRotationX = 0f;
-        private float originalFieldOfView;
         private Camera cameraComponent;
 
         #region Unity生命周期
@@ -35,8 +28,6 @@ namespace BugFixerGame
                 enabled = false;
                 return;
             }
-
-            originalFieldOfView = cameraComponent.fieldOfView;
         }
 
         private void Start()
@@ -51,7 +42,6 @@ namespace BugFixerGame
         private void Update()
         {
             HandleMouseLook();
-            HandleZoom();
             HandleInput();
         }
 
@@ -99,18 +89,6 @@ namespace BugFixerGame
             transform.localRotation = Quaternion.Euler(currentRotationX, 0, 0);
         }
 
-        private void HandleZoom()
-        {
-            if (!enableZoom) return;
-
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
-            if (Mathf.Abs(scroll) > 0.01f)
-            {
-                float newFOV = cameraComponent.fieldOfView - scroll * zoomSpeed * 10f;
-                cameraComponent.fieldOfView = Mathf.Clamp(newFOV, minFieldOfView, maxFieldOfView);
-            }
-        }
-
         #endregion
 
         #region 相机控制
@@ -149,7 +127,6 @@ namespace BugFixerGame
         {
             currentRotationX = 0f;
             transform.localRotation = Quaternion.identity;
-            cameraComponent.fieldOfView = originalFieldOfView;
 
             Debug.Log("相机已重置");
         }
@@ -195,17 +172,15 @@ namespace BugFixerGame
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(Screen.width - 300, 10, 280, 150));
+            GUILayout.BeginArea(new Rect(Screen.width - 300, 10, 280, 120));
             GUILayout.Label("=== Camera Controller ===");
             GUILayout.Label($"垂直旋转角度: {currentRotationX:F1}°");
-            GUILayout.Label($"视野角度: {cameraComponent.fieldOfView:F1}°");
             GUILayout.Label($"鼠标锁定: {(IsCursorLocked() ? "是" : "否")}");
             GUILayout.Label($"鼠标灵敏度: {mouseSensitivity:F1}");
 
             GUILayout.Space(10);
             GUILayout.Label("控制说明:");
             GUILayout.Label("鼠标 - 视角旋转");
-            GUILayout.Label("滚轮 - 缩放");
             GUILayout.Label("ESC - 切换鼠标锁定");
             GUILayout.Label("R - 重置相机");
 
