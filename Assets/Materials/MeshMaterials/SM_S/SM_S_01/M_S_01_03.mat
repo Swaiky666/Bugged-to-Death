@@ -24,7 +24,11 @@ Material:
   m_Shader: {fileID: 4800000, guid: 078b2a90d062e49c9903390f113619d3, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - BACK_GRADIENT_ON
+  - FRONT_GRADIENT_ON
+  - LEFT_GRADIENT_ON
+  - RIGHT_GRADIENT_ON
   m_InvalidKeywords:
   - COLR_1_2
   m_LightmapFlags: 4
@@ -153,22 +157,22 @@ Material:
     - __dummy__: 0
     m_Colors:
     - _AmbientColor: {r: 0.21698111, g: 0.21698111, b: 0.21698111, a: 0}
-    - _BackBottomColor: {r: 0.766, g: 0.46118295, b: 0.09804798, a: 0}
+    - _BackBottomColor: {r: 0.688, g: 0.284352, b: 0.06811203, a: 0}
     - _BackTopColor: {r: 0.83699995, g: 0.507909, b: 0.23770797, a: 0}
     - _BaseColor: {r: 1, g: 0.482, b: 0.482, a: 1}
     - _BottomColor: {r: 0.766, g: 0.46118298, b: 0.09804801, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _FrontBottomColor: {r: 0.766, g: 0.46118295, b: 0.09804798, a: 0}
+    - _FrontBottomColor: {r: 0.546, g: 0.33202705, b: 0.07132431, a: 0}
     - _FrontTopColor: {r: 0.83699995, g: 0.507909, b: 0.23770797, a: 0}
     - _HColor: {r: 1, g: 1, b: 1, a: 1}
-    - _LeftBottomColor: {r: 0.766, g: 0.46118295, b: 0.09804798, a: 0}
-    - _LeftTopColor: {r: 0.83699995, g: 0.507909, b: 0.23770797, a: 0}
+    - _LeftBottomColor: {r: 0.4245283, g: 0.2335235, b: 0.0020024967, a: 0}
+    - _LeftTopColor: {r: 1, g: 0.45394737, b: 0, a: 0}
     - _LightTint: {r: 1, g: 1, b: 1, a: 0}
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
     - _Offset: {r: 0, g: 0, b: 0, a: 1}
     - _OutlineColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _RightBottomColor: {r: 0.766, g: 0.46118295, b: 0.09804798, a: 0}
+    - _RightBottomColor: {r: 0.83699995, g: 0.66237766, b: 0.14814898, a: 0}
     - _RightTopColor: {r: 0.83699995, g: 0.507909, b: 0.23770797, a: 0}
     - _RimColor: {r: 0.8, g: 0.8, b: 0.8, a: 0.5}
     - _SColor: {r: 0.3962264, g: 0, b: 0, a: 1}
