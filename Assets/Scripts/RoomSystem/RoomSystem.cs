@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections;
 using System;
+using System.Linq;
 using UnityEngine;
 
 public class RoomSystem : MonoBehaviour
@@ -89,6 +90,21 @@ public class RoomSystem : MonoBehaviour
         }
 
         /// <summary>
+        /// 清理已销毁的Bug对象
+        /// </summary>
+        public void CleanupDestroyedBugs()
+        {
+            // 移除所有null引用的bug
+            for (int i = bugsInRoom.Count - 1; i >= 0; i--)
+            {
+                if (bugsInRoom[i] == null)
+                {
+                    bugsInRoom.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
         /// 扫描房间内的所有BugObject
         /// </summary>
         public void ScanForBugObjects()
@@ -166,20 +182,23 @@ public class RoomSystem : MonoBehaviour
         Debug.Log($"激活Bug数量: {GetCurrentRoomActiveBugs().Count}");
         Debug.Log($"未激活Bug数量: {GetCurrentRoomInactiveBugs().Count}");
 
-        Debug.Log("Bug列表:");
-        for (int i = 0; i < currentRoomBugs.Count; i++)
+        // 只显示非null的bug对象
+        var validBugs = currentRoomBugs.Where(bug => bug != null).ToList();
+
+        if (validBugs.Count > 0)
         {
-            var bug = currentRoomBugs[i];
-            if (bug != null)
+            Debug.Log("Bug列表:");
+            for (int i = 0; i < validBugs.Count; i++)
             {
+                var bug = validBugs[i];
                 string status = bug.IsBugActive() ? "激活" : "未激活";
                 if (bug.IsBeingFixed()) status = "修复中";
                 Debug.Log($"  {i + 1}. {bug.name} ({bug.GetBugType()}) - {status}");
             }
-            else
-            {
-                Debug.Log($"  {i + 1}. [已销毁的Bug对象]");
-            }
+        }
+        else
+        {
+            Debug.Log("当前房间没有有效的Bug对象");
         }
     }
 
@@ -209,6 +228,38 @@ public class RoomSystem : MonoBehaviour
         Debug.Log($"🔄 自动更新当前房间信息: {(autoUpdateCurrentRoomInfo ? "开启" : "关闭")}");
     }
 
+    [ContextMenu("清理所有房间的销毁对象")]
+    public void CleanupAllDestroyedBugs()
+    {
+        Debug.Log("🧹 开始清理所有房间中已销毁的Bug对象...");
+
+        int totalCleaned = 0;
+        foreach (var room in roomInstances)
+        {
+            int beforeCount = room.bugsInRoom.Count;
+            room.CleanupDestroyedBugs();
+            int afterCount = room.bugsInRoom.Count;
+            int cleaned = beforeCount - afterCount;
+
+            if (cleaned > 0)
+            {
+                totalCleaned += cleaned;
+                Debug.Log($"房间序列{room.currentSequence}: 清理了{cleaned}个销毁的Bug对象");
+            }
+        }
+
+        if (totalCleaned > 0)
+        {
+            Debug.Log($"✅ 清理完成，总共清理了{totalCleaned}个销毁的Bug对象");
+            // 更新当前房间信息
+            UpdateCurrentRoomBugInfo();
+        }
+        else
+        {
+            Debug.Log("✅ 没有发现需要清理的销毁对象");
+        }
+    }
+
     #region Unity生命周期
 
     void Start()
@@ -230,6 +281,12 @@ public class RoomSystem : MonoBehaviour
             if (autoUpdateCurrentRoomInfo)
             {
                 UpdateCurrentRoomBugInfo();
+            }
+
+            // 每隔一段时间清理一次销毁的对象（避免频繁清理）
+            if (Time.time % 5f < detectionInterval) // 每5秒清理一次
+            {
+                GetCurrentRoom()?.CleanupDestroyedBugs();
             }
         }
     }
@@ -310,6 +367,13 @@ public class RoomSystem : MonoBehaviour
         if (GUILayout.Button("重扫描Bug"))
         {
             RescanAllBugs();
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("清理销毁对象"))
+        {
+            CleanupAllDestroyedBugs();
         }
         GUILayout.EndHorizontal();
 
@@ -559,8 +623,18 @@ public class RoomSystem : MonoBehaviour
         RoomInstance currentRoom = GetCurrentRoom();
         if (currentRoom != null)
         {
-            // 复制Bug列表（避免直接引用）
-            currentRoomBugs.AddRange(currentRoom.bugsInRoom);
+            // 先清理房间中已销毁的bug对象
+            currentRoom.CleanupDestroyedBugs();
+
+            // 只复制非null的Bug对象
+            foreach (var bug in currentRoom.bugsInRoom)
+            {
+                if (bug != null)
+                {
+                    currentRoomBugs.Add(bug);
+                }
+            }
+
             currentRoomOriginalBugCount = currentRoom.originalBugCount;
             currentRoomFixedBugCount = currentRoom.fixedBugCount;
         }
@@ -586,8 +660,8 @@ public class RoomSystem : MonoBehaviour
     /// </summary>
     public List<BugFixerGame.BugObject> GetCurrentRoomBugObjects()
     {
-        // 返回副本以防外部修改
-        return new List<BugFixerGame.BugObject>(currentRoomBugs);
+        // 返回过滤掉null对象的副本
+        return currentRoomBugs.Where(bug => bug != null).ToList();
     }
 
     /// <summary>
@@ -668,7 +742,9 @@ public class RoomSystem : MonoBehaviour
         {
             if (room.currentSequence == roomSequence)
             {
-                return new List<BugFixerGame.BugObject>(room.bugsInRoom);
+                // 清理并返回有效的bug对象
+                room.CleanupDestroyedBugs();
+                return room.bugsInRoom.Where(bug => bug != null).ToList();
             }
         }
         return new List<BugFixerGame.BugObject>();
@@ -979,20 +1055,27 @@ public class RoomSystem : MonoBehaviour
 
         foreach (var room in roomInstances)
         {
-            Debug.Log($"房间序列{room.currentSequence}: {room.GetBugStatusInfo()} - Bug列表:");
-            for (int i = 0; i < room.bugsInRoom.Count; i++)
+            // 清理已销毁的bug对象
+            room.CleanupDestroyedBugs();
+
+            var validBugs = room.bugsInRoom.Where(bug => bug != null).ToList();
+
+            Debug.Log($"房间序列{room.currentSequence}: {room.GetBugStatusInfo()} - 有效Bug数量: {validBugs.Count}");
+
+            if (validBugs.Count > 0)
             {
-                var bug = room.bugsInRoom[i];
-                if (bug != null)
+                Debug.Log("Bug列表:");
+                for (int i = 0; i < validBugs.Count; i++)
                 {
+                    var bug = validBugs[i];
                     string status = bug.IsBugActive() ? "激活" : "未激活";
                     if (bug.IsBeingFixed()) status = "修复中";
                     Debug.Log($"  {i + 1}. {bug.name} ({bug.GetBugType()}) - {status}");
                 }
-                else
-                {
-                    Debug.Log($"  {i + 1}. [已销毁的Bug对象]");
-                }
+            }
+            else
+            {
+                Debug.Log("  该房间没有有效的Bug对象");
             }
         }
     }

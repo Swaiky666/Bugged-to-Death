@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Linq;
 
 [CustomEditor(typeof(RoomSystem))]
 public class RoomSystemEditor : Editor
@@ -117,6 +118,13 @@ public class RoomSystemEditor : Editor
         }
         EditorGUILayout.EndHorizontal();
 
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("清理销毁对象"))
+        {
+            roomSystem.CleanupAllDestroyedBugs();
+        }
+        EditorGUILayout.EndHorizontal();
+
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("环形移动测试", EditorStyles.boldLabel);
 
@@ -173,6 +181,7 @@ public class RoomSystemEditor : Editor
         EditorGUILayout.LabelField($"当前房间序列: {roomSystem.GetCurrentRoomSequence()}");
         EditorGUILayout.LabelField($"Bug统计: {roomSystem.GetCurrentRoomBugStats()}");
 
+        // 获取有效的Bug对象（已过滤null对象）
         var currentRoomBugs = roomSystem.GetCurrentRoomBugObjects();
         var activeBugs = roomSystem.GetCurrentRoomActiveBugs();
         var inactiveBugs = roomSystem.GetCurrentRoomInactiveBugs();
@@ -190,6 +199,7 @@ public class RoomSystemEditor : Editor
             for (int i = 0; i < currentRoomBugs.Count; i++)
             {
                 var bug = currentRoomBugs[i];
+                // 由于GetCurrentRoomBugObjects()已经过滤了null对象，这里可以安全访问
                 if (bug != null)
                 {
                     EditorGUILayout.BeginHorizontal();
@@ -220,10 +230,6 @@ public class RoomSystemEditor : Editor
 
                     EditorGUILayout.EndHorizontal();
                 }
-                else
-                {
-                    EditorGUILayout.LabelField($"{i + 1}. [已销毁的Bug对象]", EditorStyles.helpBox);
-                }
             }
 
             EditorGUILayout.EndScrollView();
@@ -250,6 +256,10 @@ public class RoomSystemEditor : Editor
                 Selection.objects = inactiveObjects.ToArray();
             }
             EditorGUILayout.EndHorizontal();
+        }
+        else if (currentRoomBugs.Count == 0)
+        {
+            EditorGUILayout.LabelField("当前房间没有有效的Bug对象", EditorStyles.helpBox);
         }
 
         EditorGUILayout.EndVertical();
@@ -315,25 +325,29 @@ public class RoomSystemEditor : Editor
             "• 实时追踪Bug修复状态和剩余数量\n" +
             "• 提供当前房间Bug信息的详细显示\n" +
             "• 支持按房间序列查询Bug信息\n" +
-            "• 自动更新当前房间Bug列表（可开关）\n\n" +
+            "• 自动更新当前房间Bug列表（可开关）\n" +
+            "• 自动清理已销毁的Bug对象引用\n\n" +
             "🎮 外部调用接口：\n" +
-            "• GetCurrentRoomBugObjects() - 获取当前房间所有Bug\n" +
+            "• GetCurrentRoomBugObjects() - 获取当前房间所有有效Bug\n" +
             "• GetCurrentRoomActiveBugs() - 获取当前房间激活Bug\n" +
             "• GetCurrentRoomInactiveBugs() - 获取当前房间未激活Bug\n" +
             "• GetRoomBugObjects(int sequence) - 获取指定房间Bug\n" +
             "• CurrentRoomHasUnfixedBugs() - 检查是否有未修复Bug\n" +
-            "• RefreshCurrentRoomBugInfo() - 强制刷新当前房间信息\n\n" +
+            "• RefreshCurrentRoomBugInfo() - 强制刷新当前房间信息\n" +
+            "• CleanupAllDestroyedBugs() - 清理所有销毁的Bug对象\n\n" +
             "🔍 调试工具：\n" +
-            "• Inspector实时显示当前房间Bug列表\n" +
+            "• Inspector实时显示当前房间有效Bug列表\n" +
             "• 点击Bug对象可直接选中并定位\n" +
             "• 颜色区分：红色=激活Bug，黄色=修复中，绿色=未激活\n" +
             "• Console输出详细的Bug状态和移动日志\n" +
-            "• Scene视图实时显示序列号、距离和Bug统计\n\n" +
+            "• Scene视图实时显示序列号、距离和Bug统计\n" +
+            "• 自动过滤已销毁的Bug对象，不再显示null引用\n\n" +
             "⚙️ 新增功能：\n" +
             "• 当前房间Bug信息在Inspector中实时显示\n" +
             "• 支持一键选中所有激活/未激活Bug\n" +
             "• 提供完整的外部调用API\n" +
-            "• 游戏结束条件：所有Bug修复完成触发Happy End",
+            "• 游戏结束条件：所有Bug修复完成触发Happy End\n" +
+            "• 智能清理：自动清理已销毁的Bug对象，防止空引用错误",
             MessageType.Info
         );
     }

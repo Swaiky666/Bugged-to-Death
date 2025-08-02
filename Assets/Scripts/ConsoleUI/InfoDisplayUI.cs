@@ -1,6 +1,7 @@
 ﻿// InfoDisplayUI.cs
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -153,16 +154,17 @@ namespace BugFixerGame
             infoItems.Clear();
             currentInfos.Clear();
 
-            // fetch bugs
+            // fetch bugs - 使用新的API获取过滤后的Bug列表
             var rs = FindObjectOfType<RoomSystem>();
             var bugs = rs != null
-                ? rs.GetCurrentRoomBugObjects()
-                : new List<BugObject>(FindObjectsOfType<BugObject>());
+                ? rs.GetCurrentRoomBugObjects() // 这个方法已经过滤了null对象
+                : new List<BugObject>(FindObjectsOfType<BugObject>().Where(b => b != null));
 
-            // instantiate items
+            // instantiate items - 只为有效的Bug创建UI
             foreach (var b in bugs)
             {
-                if (!b.ShouldShowInInfoPanel()) continue;
+                // 双重检查确保bug对象有效
+                if (b == null || !b.ShouldShowInInfoPanel()) continue;
 
                 var data = new InfoData(
                     InfoType.Bug,
@@ -192,13 +194,19 @@ namespace BugFixerGame
 
         private void OnBugFixed(BugObject bug)
         {
+            // 检查bug对象是否仍然有效
+            if (bug == null) return;
+
             // find and remove matching entry
             int idx = currentInfos.FindIndex(i => i.Title == bug.GetBugTitle());
             if (idx < 0) return;
 
             currentInfos.RemoveAt(idx);
-            Destroy(infoItems[idx]);
-            infoItems.RemoveAt(idx);
+            if (idx < infoItems.Count && infoItems[idx] != null)
+            {
+                Destroy(infoItems[idx]);
+                infoItems.RemoveAt(idx);
+            }
 
             // rebuild layout
             Canvas.ForceUpdateCanvases();
@@ -276,8 +284,11 @@ namespace BugFixerGame
             if (idx >= 0)
             {
                 currentInfos.RemoveAt(idx);
-                Destroy(infoItems[idx]);
-                infoItems.RemoveAt(idx);
+                if (idx < infoItems.Count && infoItems[idx] != null)
+                {
+                    Destroy(infoItems[idx]);
+                    infoItems.RemoveAt(idx);
+                }
 
                 Canvas.ForceUpdateCanvases();
                 LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
@@ -291,7 +302,10 @@ namespace BugFixerGame
         private void UpdateTitle()
         {
             if (!showBugCount || titleText == null) return;
-            titleText.text = $"Info [{currentRoomId}] (Bug: {currentInfos.Count})";
+
+            // 只计算有效的Bug信息数量
+            int validBugCount = currentInfos.Count(info => info.Type == InfoType.Bug);
+            titleText.text = $"Info [{currentRoomId}] (Bug: {validBugCount})";
         }
 
         public void SetBackgroundSprites(Sprite bugBg, Sprite msgBg, Sprite alertBg)
