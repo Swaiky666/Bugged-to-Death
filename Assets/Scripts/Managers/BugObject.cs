@@ -8,12 +8,19 @@ namespace BugFixerGame
     public class BugObject : MonoBehaviour
     {
         // 用于判断当前对象是否为Bug
-public bool IsBug => bugType != BugType.None;
-
+        public bool IsBug => bugType != BugType.None;
 
         [Header("Bug配置")]
         [SerializeField] private BugType bugType = BugType.None;
         [SerializeField] private bool startWithBugActive = false;
+
+        [Header("Bug信息显示")]
+        [SerializeField, TextArea(3, 6)]
+        private string bugDescription = "";
+        [SerializeField]
+        private string bugTitle = "";
+        [SerializeField]
+        private bool showInInfoPanel = true; // 是否在信息面板中显示
 
         [Header("正确物体配置")]
         [SerializeField] private GameObject correctObject;          // 正确的物体
@@ -68,7 +75,6 @@ public bool IsBug => bugType != BugType.None;
 
         [Header("调试设置")]
         [SerializeField] private bool debugFlickering = true;
-        [SerializeField] private bool autoFixMaterialTransparency = true;
         [SerializeField] private bool showDebugInfo = false;
 
         // 组件缓存
@@ -119,6 +125,18 @@ public bool IsBug => bugType != BugType.None;
             SaveOriginalState();
             InitializeCorrectObject();
 
+            // 如果bug描述为空，使用bug类型作为默认描述
+            if (string.IsNullOrEmpty(bugDescription) && bugType != BugType.None)
+            {
+                bugDescription = GameStatsHelper.GetBugTypeDisplayName(bugType);
+            }
+
+            // 如果bug标题为空，使用物体名称作为默认标题
+            if (string.IsNullOrEmpty(bugTitle))
+            {
+                bugTitle = gameObject.name;
+            }
+
             if (startWithBugActive)
             {
                 ActivateBug();
@@ -133,6 +151,66 @@ public bool IsBug => bugType != BugType.None;
         private void OnDestroy()
         {
             DeactivateBug();
+        }
+
+        #endregion
+
+        #region Bug信息接口
+
+        /// <summary>
+        /// 获取Bug描述信息
+        /// </summary>
+        public string GetBugDescription() => bugDescription;
+
+        /// <summary>
+        /// 获取Bug标题
+        /// </summary>
+        public string GetBugTitle() => bugTitle;
+
+        /// <summary>
+        /// 是否应该在信息面板中显示
+        /// </summary>
+        public bool ShouldShowInInfoPanel() => showInInfoPanel && IsBug;
+
+        /// <summary>
+        /// 设置Bug描述信息
+        /// </summary>
+        public void SetBugDescription(string description)
+        {
+            bugDescription = description;
+        }
+
+        /// <summary>
+        /// 设置Bug标题
+        /// </summary>
+        public void SetBugTitle(string title)
+        {
+            bugTitle = title;
+        }
+
+        /// <summary>
+        /// 设置是否在信息面板显示
+        /// </summary>
+        public void SetShowInInfoPanel(bool show)
+        {
+            showInInfoPanel = show;
+        }
+
+        /// <summary>
+        /// 获取Bug的完整信息
+        /// </summary>
+        public BugInfo GetBugInfo()
+        {
+            return new BugInfo
+            {
+                bugObject = this,
+                title = bugTitle,
+                description = bugDescription,
+                bugType = bugType,
+                isActive = isBugActive,
+                position = transform.position,
+                objectName = gameObject.name
+            };
         }
 
         #endregion
@@ -942,6 +1020,9 @@ public bool IsBug => bugType != BugType.None;
             Debug.Log("=== BugObject组件检查 ===");
             Debug.Log($"Bug类型: {bugType}");
             Debug.Log($"激活状态: {isBugActive}");
+            Debug.Log($"Bug标题: {bugTitle}");
+            Debug.Log($"Bug描述: {bugDescription}");
+            Debug.Log($"显示在信息面板: {showInInfoPanel}");
             Debug.Log($"Renderer: {(objectRenderer ? objectRenderer.name : "无")}");
             Debug.Log($"SpriteRenderer: {(spriteRenderer ? spriteRenderer.name : "无")}");
             Debug.Log($"Collider2D: {(objectCollider2D ? objectCollider2D.name : "无")}");
@@ -957,5 +1038,25 @@ public bool IsBug => bugType != BugType.None;
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Bug信息数据类
+    /// </summary>
+    [System.Serializable]
+    public class BugInfo
+    {
+        public BugObject bugObject;
+        public string title;
+        public string description;
+        public BugType bugType;
+        public bool isActive;
+        public Vector3 position;
+        public string objectName;
+
+        public string GetBugTypeDisplayName()
+        {
+            return GameStatsHelper.GetBugTypeDisplayName(bugType);
+        }
     }
 }

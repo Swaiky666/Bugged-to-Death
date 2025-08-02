@@ -22,6 +22,9 @@ namespace BugFixerGame
         [Header("长按点击设置")]
         [SerializeField] private float holdTime = 2f;              // 长按时间
 
+        [Header("游戏结束控制")]
+        [SerializeField] private bool disableControlsOnGameEnd = true;  // 游戏结束时是否禁用控制
+
         private CharacterController controller;
         private Camera cam;
         private CameraController cameraController;
@@ -35,6 +38,9 @@ namespace BugFixerGame
         private float holdStartTime = 0f;
         private Coroutine holdCoroutine;
 
+        // 控制状态
+        private bool controlsEnabled = true;
+
         // 事件
         public static event System.Action<BugObject> OnBugObjectClicked;
         public static event System.Action<Vector3> OnEmptySpaceClicked;
@@ -44,11 +50,16 @@ namespace BugFixerGame
         // 新增事件：检测完成
         public static event System.Action<GameObject, bool> OnObjectDetectionComplete; // (检测的物体, 是否是真的bug)
 
+        // 新增事件：检测结果UI显示
+        public static event System.Action<bool> OnDetectionResult; // (是否检测成功)
+
         #region Unity生命周期
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
+
+            // 尝试获取相机引用
             cam = Camera.main;
             if (cam == null)
             {
@@ -56,16 +67,307 @@ namespace BugFixerGame
                 cam = GetComponentInChildren<Camera>();
             }
 
+            // 如果还是找不到，记录警告但不报错
+            if (cam == null)
+            {
+                Debug.LogWarning("🎥 Player Awake: 未找到相机引用，将在Start时重试");
+            }
+
             cameraController = GetComponentInChildren<CameraController>();
+
+            Debug.Log($"🎮 Player Awake完成 - 相机: {(cam != null ? cam.name : "未找到")}, 控制器: {(cameraController != null ? "有效" : "无效")}");
+        }
+
+        private void Start()
+        {
+            // 确保相机引用在游戏开始时是有效的
+            ValidateCameraReference();
+            Debug.Log($"🎮 Player Start: 相机引用状态 - {(cam != null ? $"有效 ({cam.name})" : "无效")}");
+        }
+
+        private void OnEnable()
+        {
+            // 订阅游戏结束事件
+            GameManager.OnGameOver += OnGameEnded;
+            GameManager.OnHappyEnd += OnGameEnded;
+            GameManager.OnGameEnded += OnGameEndedWithReason;
+        }
+
+        private void OnDisable()
+        {
+            // 取消订阅
+            GameManager.OnGameOver -= OnGameEnded;
+            GameManager.OnHappyEnd -= OnGameEnded;
+            GameManager.OnGameEnded -= OnGameEndedWithReason;
         }
 
         private void Update()
         {
-            HandleMovement();
-            HandleJump();
-            HandleRayDetection();
-            HandleClickInput();
+            // 检查相机引用是否有效
+            if (!ValidateCameraReference())
+            {
+                return; // 如果相机无效，跳过这一帧的处理
+            }
+
+            // 检查控制是否启用
+            UpdateControlsState();
+
+            if (controlsEnabled)
+            {
+                HandleMovement();
+                HandleJump();
+                HandleRayDetection();
+                HandleClickInput();
+            }
+            else
+            {
+                // 游戏结束时，取消任何进行中的长按操作
+                if (isHolding)
+                {
+                    CancelHold();
+                }
+            }
+
+            // ESC键始终可用（用于暂停菜单）
             HandleEscapeInput();
+        }
+
+        private void OnDestroy()
+        {
+            // 清理引用，避免内存泄漏
+            cam = null;
+            cameraController = null;
+
+            // 停止所有协程
+            if (holdCoroutine != null)
+            {
+                StopCoroutine(holdCoroutine);
+                holdCoroutine = null;
+            }
+
+            Debug.Log("🧹 Player: OnDestroy - 清理完成");
+        }
+
+        #endregion
+
+        #region 调试Context菜单
+
+        [ContextMenu("🎥 验证相机引用")]
+        private void DebugValidateCameraReference()
+        {
+            bool result = ValidateCameraReference();
+            Debug.Log($"🎥 相机引用验证结果: {(result ? "成功" : "失败")}");
+            if (result)
+            {
+                Debug.Log($"当前相机: {cam.name}");
+                Debug.Log($"相机控制器: {(cameraController != null ? cameraController.name : "无")}");
+            }
+        }
+
+        [ContextMenu("🔄 强制重新获取相机")]
+        private void DebugForceReacquireCamera()
+        {
+            cam = null;
+            cameraController = null;
+            bool result = ValidateCameraReference();
+            Debug.Log($"🔄 强制重新获取相机结果: {(result ? "成功" : "失败")}");
+        }
+
+        [ContextMenu("🎮 显示控制状态")]
+        private void DebugShowControlState()
+        {
+            Debug.Log("=== Player控制状态 ===");
+            Debug.Log($"控制启用: {controlsEnabled}");
+            Debug.Log($"游戏结束时禁用: {disableControlsOnGameEnd}");
+            Debug.Log($"正在长按: {isHolding}");
+            Debug.Log($"相机引用: {(cam != null ? cam.name : "无效")}");
+            Debug.Log($"相机控制器: {(cameraController != null ? "有效" : "无效")}");
+
+            if (GameManager.Instance != null)
+            {
+                Debug.Log($"游戏结束状态: {GameManager.Instance.IsGameEnded()}");
+                if (GameManager.Instance.IsGameEnded())
+                {
+                    Debug.Log($"结束原因: {GameManager.Instance.GetGameEndReason()}");
+                }
+            }
+        }
+
+        [ContextMenu("⚠️ 测试相机丢失情况")]
+        private void DebugTestCameraLoss()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🧪 模拟相机引用丢失...");
+                cam = null;
+                cameraController = null;
+                Debug.Log("相机引用已清空，下一帧Update将尝试重新获取");
+            }
+        }
+
+        [ContextMenu("🎮 测试长按完成行为")]
+        private void DebugTestHoldCompletion()
+        {
+            if (Application.isPlaying && currentDetectedObject != null)
+            {
+                Debug.Log("🧪 模拟长按完成...");
+                CompleteObjectDetection();
+            }
+            else
+            {
+                Debug.Log("请先将视线对准一个物体，然后运行此测试");
+            }
+        }
+
+        [ContextMenu("🔄 测试长按重启逻辑")]
+        private void DebugTestHoldRestart()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("=== 🧪 测试长按重启逻辑 ===");
+                Debug.Log($"当前长按状态: {isHolding}");
+                Debug.Log($"协程状态: {(holdCoroutine != null ? "运行中" : "空闲")}");
+                Debug.Log($"当前检测物体: {(currentDetectedObject != null ? currentDetectedObject.name : "无")}");
+
+                if (isHolding)
+                {
+                    Debug.Log("🛑 强制完成当前长按...");
+                    CompleteObjectDetection();
+                }
+
+                Debug.Log("现在尝试开始新的长按 - 这应该会被允许");
+                if (currentDetectedObject != null)
+                {
+                    StartHold();
+                }
+            }
+        }
+
+        #endregion
+
+        #region 控制状态管理
+
+        /// <summary>
+        /// 验证相机引用是否有效，如果无效则尝试重新获取
+        /// </summary>
+        private bool ValidateCameraReference()
+        {
+            // 检查当前相机引用是否有效
+            if (cam != null && cam.gameObject != null)
+            {
+                return true;
+            }
+
+            // 相机引用无效，尝试重新获取
+            Debug.LogWarning("🎥 Player: 相机引用无效，尝试重新获取...");
+
+            // 首先尝试获取主相机
+            cam = Camera.main;
+
+            // 如果主相机不存在，尝试从子物体中获取
+            if (cam == null)
+            {
+                cam = GetComponentInChildren<Camera>();
+            }
+
+            // 如果还是找不到，尝试在场景中查找Camera组件
+            if (cam == null)
+            {
+                cam = FindObjectOfType<Camera>();
+            }
+
+            if (cam != null)
+            {
+                Debug.Log($"🎥 Player: 成功重新获取相机引用: {cam.name}");
+
+                // 同时更新CameraController引用
+                if (cameraController == null)
+                {
+                    cameraController = cam.GetComponent<CameraController>();
+                    if (cameraController == null)
+                    {
+                        cameraController = GetComponentInChildren<CameraController>();
+                    }
+                }
+
+                return true;
+            }
+            else
+            {
+                // Debug.LogWarning("🎥 Player: 无法找到有效的相机引用");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 更新控制状态
+        /// </summary>
+        private void UpdateControlsState()
+        {
+            bool shouldEnableControls = true;
+
+            if (disableControlsOnGameEnd && GameManager.Instance != null)
+            {
+                // 如果游戏结束且启用了游戏结束禁用控制，则禁用控制
+                if (GameManager.Instance.IsGameEnded())
+                {
+                    shouldEnableControls = false;
+                }
+            }
+
+            // 如果控制状态发生变化，记录日志
+            if (controlsEnabled != shouldEnableControls)
+            {
+                controlsEnabled = shouldEnableControls;
+                Debug.Log($"🎮 玩家控制状态更新: {(controlsEnabled ? "启用" : "禁用")}");
+
+                if (!controlsEnabled)
+                {
+                    // 禁用控制时，停止所有移动
+                    velocity.x = 0f;
+                    velocity.z = 0f;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 游戏结束事件处理
+        /// </summary>
+        private void OnGameEnded()
+        {
+            Debug.Log("🛑 Player: 收到游戏结束事件，准备禁用控制");
+            UpdateControlsState();
+        }
+
+        /// <summary>
+        /// 带原因的游戏结束事件处理
+        /// </summary>
+        private void OnGameEndedWithReason(string reason)
+        {
+            Debug.Log($"🛑 Player: 游戏结束 - {reason}，控制已禁用");
+            UpdateControlsState();
+        }
+
+        /// <summary>
+        /// 手动设置控制启用状态
+        /// </summary>
+        public void SetControlsEnabled(bool enabled)
+        {
+            controlsEnabled = enabled;
+            Debug.Log($"🎮 手动设置玩家控制: {(enabled ? "启用" : "禁用")}");
+
+            if (!enabled && isHolding)
+            {
+                CancelHold();
+            }
+        }
+
+        /// <summary>
+        /// 检查控制是否启用
+        /// </summary>
+        public bool AreControlsEnabled()
+        {
+            return controlsEnabled;
         }
 
         #endregion
@@ -74,6 +376,12 @@ namespace BugFixerGame
 
         private void HandleMovement()
         {
+            // 确保相机引用有效
+            if (cam == null)
+            {
+                return;
+            }
+
             // 地面检测
             isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance + 0.1f, groundMask.value);
 
@@ -116,6 +424,12 @@ namespace BugFixerGame
 
         private void HandleRayDetection()
         {
+            // 确保相机引用有效
+            if (cam == null)
+            {
+                return;
+            }
+
             Vector3 screenCenter = new Vector3(Screen.width / 2f, Screen.height / 2f);
             Ray ray = cam.ScreenPointToRay(screenCenter);
 
@@ -210,7 +524,7 @@ namespace BugFixerGame
 
         private void HandleClickInput()
         {
-            // 鼠标按下开始长按
+            // 鼠标按下开始长按（只有在没有进行长按时才能开始新的长按）
             if (Input.GetMouseButtonDown(0))
             {
                 StartHold();
@@ -243,7 +557,12 @@ namespace BugFixerGame
 
         private void StartHold()
         {
-            if (isHolding) return;
+            // 如果已经在进行长按，则不开始新的长按
+            if (isHolding)
+            {
+                Debug.Log("[长按相关] 已经在进行长按，忽略新的长按请求");
+                return;
+            }
 
             // 没有检测到任何物体时点击空白处
             if (currentDetectedObject == null)
@@ -271,7 +590,7 @@ namespace BugFixerGame
 
             Debug.Log("[长按相关] 长按协程开始");
 
-            while (elapsed < holdTime && isHolding)
+            while (elapsed < holdTime && isHolding && controlsEnabled)
             {
                 elapsed = Time.time - holdStartTime;
                 float progress = elapsed / holdTime;
@@ -293,14 +612,20 @@ namespace BugFixerGame
             }
 
             // 长按完成
-            if (isHolding && currentDetectedObject != null)
+            if (isHolding && currentDetectedObject != null && controlsEnabled)
             {
                 Debug.Log("[长按相关] 长按完成！开始检测物体");
                 CompleteObjectDetection();
             }
             else
             {
-                Debug.Log("[长按相关] 长按协程结束，但条件不满足（可能被取消了）");
+                Debug.Log("[长按相关] 长按协程结束，但条件不满足（可能被取消了或控制被禁用）");
+
+                // 如果是因为控制被禁用而结束，也要隐藏UI
+                if (!controlsEnabled)
+                {
+                    OnHoldCancelled?.Invoke();
+                }
             }
         }
 
@@ -322,6 +647,10 @@ namespace BugFixerGame
             // 发送检测完成事件给GameManager处理评分
             OnObjectDetectionComplete?.Invoke(currentDetectedObject, isActualBug);
 
+            // 触发检测结果UI显示事件
+            OnDetectionResult?.Invoke(isActualBug);
+            Debug.Log($"[检测结果] 触发UI显示事件: {(isActualBug ? "成功" : "失败")}");
+
             // 如果检测到真的bug，触发bug修复
             if (isActualBug)
             {
@@ -334,11 +663,15 @@ namespace BugFixerGame
                 Debug.Log("[检测结果] 检测到的不是bug或没有激活的bug");
             }
 
-            // 重置长按状态
+            // 长按检测完成后，立即隐藏UI并重置状态
+            Debug.Log("[长按相关] 检测完成，隐藏UI并重置状态");
             isHolding = false;
             holdCoroutine = null;
 
-            Debug.Log("[长按相关] 物体检测调用完成");
+            // 发送取消事件来隐藏UI
+            OnHoldCancelled?.Invoke();
+
+            Debug.Log("[长按相关] 物体检测调用完成，UI已隐藏");
         }
 
         private void CancelHold()
@@ -357,10 +690,19 @@ namespace BugFixerGame
 
             // 发送取消事件
             OnHoldCancelled?.Invoke();
+
+            Debug.Log("[长按相关] 长按取消完成，UI已隐藏");
         }
 
         private void HandleEmptyClick()
         {
+            // 确保相机引用有效
+            if (cam == null)
+            {
+                Debug.LogWarning("HandleEmptyClick: 相机引用无效，无法处理空白点击");
+                return;
+            }
+
             Vector3 screenCenter = new Vector3(Screen.width / 2f, Screen.height / 2f);
             Ray ray = cam.ScreenPointToRay(screenCenter);
 
@@ -404,6 +746,16 @@ namespace BugFixerGame
             CancelHold();
         }
 
+        /// <summary>
+        /// 设置是否在游戏结束时禁用控制
+        /// </summary>
+        public void SetDisableControlsOnGameEnd(bool disable)
+        {
+            disableControlsOnGameEnd = disable;
+            UpdateControlsState();
+            Debug.Log($"🎮 设置游戏结束时禁用控制: {disable}");
+        }
+
         #endregion
 
         #region 调试功能
@@ -415,20 +767,35 @@ namespace BugFixerGame
         {
             if (!showDebugGUI) return;
 
-            GUILayout.BeginArea(new Rect(10, Screen.height - 250, 400, 240));
+            GUILayout.BeginArea(new Rect(10, Screen.height - 350, 400, 340));
             GUILayout.Label("=== Player Debug ===");
 
             GUILayout.Label($"地面状态: {(isGrounded ? "着地" : "空中")}");
             GUILayout.Label($"移动速度: {controller.velocity.magnitude:F2}");
+            GUILayout.Label($"控制启用: {(controlsEnabled ? "是" : "否")}");
+            GUILayout.Label($"相机引用: {(cam != null ? cam.name : "无效")}");
+            GUILayout.Label($"相机控制器: {(cameraController != null ? "有效" : "无效")}");
+
+            if (GameManager.Instance != null)
+            {
+                GUILayout.Label($"游戏结束: {GameManager.Instance.IsGameEnded()}");
+                if (GameManager.Instance.IsGameEnded())
+                {
+                    GUILayout.Label($"结束原因: {GameManager.Instance.GetGameEndReason()}");
+                }
+            }
+
             GUILayout.Label($"检测到物体: {(currentDetectedObject ? currentDetectedObject.name : "无")}");
             GUILayout.Label($"检测到Bug: {(currentDetectedBugObject ? currentDetectedBugObject.name : "无")}");
             GUILayout.Label($"Bug激活状态: {(currentDetectedBugObject ? currentDetectedBugObject.IsBugActive().ToString() : "N/A")}");
             GUILayout.Label($"长按状态: {(isHolding ? "长按中" : "未按下")}");
+            GUILayout.Label($"长按协程: {(holdCoroutine != null ? "运行中" : "空闲")}");
 
             if (isHolding)
             {
                 float progress = GetHoldProgress();
                 GUILayout.Label($"长按进度: {progress:P0}");
+                GUILayout.Label($"剩余时间: {(holdTime - (Time.time - holdStartTime)):F1}s");
 
                 // 显示进度条
                 Rect progressRect = GUILayoutUtility.GetRect(200, 20);
@@ -441,7 +808,7 @@ namespace BugFixerGame
             GUILayout.Space(10);
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("强制检测当前物体"))
+            if (GUILayout.Button("强制完成长按"))
             {
                 if (currentDetectedObject != null)
                 {
@@ -451,6 +818,42 @@ namespace BugFixerGame
             if (GUILayout.Button("取消长按"))
             {
                 ForceStopHold();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("开始新长按"))
+            {
+                if (currentDetectedObject != null && !isHolding)
+                {
+                    StartHold();
+                }
+            }
+            if (GUILayout.Button("重新获取相机"))
+            {
+                cam = null; // 强制重新获取
+                ValidateCameraReference();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("切换控制状态"))
+            {
+                SetControlsEnabled(!controlsEnabled);
+            }
+            if (GUILayout.Button("测试相机引用"))
+            {
+                bool isValid = ValidateCameraReference();
+                Debug.Log($"🎥 相机引用测试结果: {(isValid ? "有效" : "无效")}");
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("重置控制"))
+            {
+                SetControlsEnabled(true);
+                disableControlsOnGameEnd = true;
+                UpdateControlsState();
             }
             GUILayout.EndHorizontal();
 

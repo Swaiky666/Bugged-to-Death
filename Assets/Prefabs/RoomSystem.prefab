@@ -46,16 +46,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   roomPrefabs:
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
-  - {fileID: 2876521323351496815, guid: 1fe96f3213d25644e9acec1b4f2ba133, type: 3}
+  - {fileID: 5685430018626367581, guid: 4cb68bbc60731904b94b1302f460183b, type: 3}
+  - {fileID: 5685430018626367581, guid: da2538268820e9846870bb29c59ae8bc, type: 3}
+  - {fileID: 5685430018626367581, guid: 073227761ba7693499ae783a2bec7593, type: 3}
+  - {fileID: 5685430018626367581, guid: 2c56e01a486a86b4f95d3d85fc233d15, type: 3}
+  - {fileID: 5685430018626367581, guid: c7a14e861cf418645b508f9e3f7c7b25, type: 3}
+  - {fileID: 5685430018626367581, guid: 4cb68bbc60731904b94b1302f460183b, type: 3}
+  - {fileID: 5685430018626367581, guid: da2538268820e9846870bb29c59ae8bc, type: 3}
+  - {fileID: 5685430018626367581, guid: 073227761ba7693499ae783a2bec7593, type: 3}
+  - {fileID: 5685430018626367581, guid: 2c56e01a486a86b4f95d3d85fc233d15, type: 3}
+  - {fileID: 5685430018626367581, guid: c7a14e861cf418645b508f9e3f7c7b25, type: 3}
   roomSpacing: 15
   visibleRoomCount: 10
   playerCenterPosition: 4
