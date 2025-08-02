@@ -602,7 +602,7 @@ namespace BugFixerGame
                     lastLogTime = elapsed;
                 }
 
-                // 发送进度事件
+                // 发送进度事件 (UIManager会监听这个事件来控制UI)
                 if (currentDetectedObject != null)
                 {
                     OnObjectHoldProgress?.Invoke(currentDetectedObject, progress);
@@ -621,7 +621,7 @@ namespace BugFixerGame
             {
                 Debug.Log("[长按相关] 长按协程结束，但条件不满足（可能被取消了或控制被禁用）");
 
-                // 如果是因为控制被禁用而结束，也要隐藏UI
+                // 如果是因为控制被禁用而结束，也要发送取消事件
                 if (!controlsEnabled)
                 {
                     OnHoldCancelled?.Invoke();
@@ -663,15 +663,15 @@ namespace BugFixerGame
                 Debug.Log("[检测结果] 检测到的不是bug或没有激活的bug");
             }
 
-            // 长按检测完成后，立即隐藏UI并重置状态
-            Debug.Log("[长按相关] 检测完成，隐藏UI并重置状态");
+            // 长按检测完成后，立即重置状态并发送取消事件
+            Debug.Log("[长按相关] 检测完成，重置状态");
             isHolding = false;
             holdCoroutine = null;
 
-            // 发送取消事件来隐藏UI
+            // 发送取消事件来隐藏进度UI和恢复检测UI状态 (UIManager会处理)
             OnHoldCancelled?.Invoke();
 
-            Debug.Log("[长按相关] 物体检测调用完成，UI已隐藏");
+            Debug.Log("[长按相关] 物体检测调用完成，事件已发送");
         }
 
         private void CancelHold()
@@ -688,10 +688,10 @@ namespace BugFixerGame
                 holdCoroutine = null;
             }
 
-            // 发送取消事件
+            // 发送取消事件 (UIManager会监听这个事件来恢复UI状态)
             OnHoldCancelled?.Invoke();
 
-            Debug.Log("[长按相关] 长按取消完成，UI已隐藏");
+            Debug.Log("[长按相关] 长按取消完成，事件已发送");
         }
 
         private void HandleEmptyClick()

@@ -1,4 +1,4 @@
-﻿// UIManager.cs - 完整的UI管理系统，包含游戏结束界面
+﻿// UIManager.cs - 直接在主菜单和暂停面板放音频slider
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,6 +16,12 @@ namespace BugFixerGame
         [SerializeField] private GameObject happyEndPanel;     // Happy End面板
         [SerializeField] private GameObject badEndPanel;       // 额外的Bad End面板（如果需要）
 
+        [Header("检测UI控制")]
+        [SerializeField] private GameObject crosshair;             // 十字准心对象
+        [SerializeField] private GameObject magicCircle;           // 魔法圈对象
+        [SerializeField] private bool enableDetectionUIControl = true;      // 是否启用检测UI控制
+        [SerializeField] private bool debugDetectionUI = true;             // 调试检测UI（默认开启）
+
         [Header("魔法球UI设置")]
         [SerializeField] private Transform manaOrbsContainer;           // 魔法球容器
         [SerializeField] private GameObject manaOrbPrefab;              // 魔法球预制体
@@ -32,6 +38,14 @@ namespace BugFixerGame
         [SerializeField] private Button returnToMenuButton;
         [SerializeField] private Button restartGameButton;
 
+        [Header("主菜单音频控制")]
+        [SerializeField] private Slider mainMenuMusicSlider;     // 主菜单音乐音量滑条
+        [SerializeField] private Slider mainMenuSFXSlider;       // 主菜单音效音量滑条
+
+        [Header("暂停菜单音频控制")]
+        [SerializeField] private Slider pauseMusicSlider;       // 暂停菜单音乐音量滑条
+        [SerializeField] private Slider pauseSFXSlider;         // 暂停菜单音效音量滑条
+
         [Header("Game End UI Elements")]
         [SerializeField] private Button badEndRestartButton;           // Bad End重新开始按钮
         [SerializeField] private Button badEndMenuButton;              // Bad End返回菜单按钮
@@ -46,6 +60,11 @@ namespace BugFixerGame
         private List<SimpleManaOrb> manaOrbs = new List<SimpleManaOrb>();
         private int currentMaxMana = 0;
 
+        // 检测UI状态管理
+        private bool originalCrosshairState = true;
+        private bool originalMagicCircleState = false;
+        private bool isDetectionUIActive = false;
+
         public static UIManager Instance { get; private set; }
 
         #region Unity生命周期
@@ -56,6 +75,7 @@ namespace BugFixerGame
             {
                 Instance = this;
                 InitializeUI();
+                InitializeDetectionUI();
             }
             else
             {
@@ -70,6 +90,10 @@ namespace BugFixerGame
             GameManager.OnGameOver += ShowBadEnd;           // 订阅Bad End事件
             GameManager.OnHappyEnd += ShowHappyEnd;         // 订阅Happy End事件
             GameManager.OnGameEnded += HandleGameEnded;     // 订阅通用游戏结束事件
+
+            // 订阅Player的检测相关事件
+            Player.OnObjectHoldProgress += HandleDetectionProgress;
+            Player.OnHoldCancelled += HandleDetectionCancelled;
         }
 
         private void OnDisable()
@@ -79,6 +103,198 @@ namespace BugFixerGame
             GameManager.OnGameOver -= ShowBadEnd;
             GameManager.OnHappyEnd -= ShowHappyEnd;
             GameManager.OnGameEnded -= HandleGameEnded;
+
+            // 取消订阅Player事件
+            Player.OnObjectHoldProgress -= HandleDetectionProgress;
+            Player.OnHoldCancelled -= HandleDetectionCancelled;
+
+            // 恢复检测UI状态
+            RestoreDetectionUIState();
+        }
+
+        #endregion
+
+        #region 检测UI控制
+
+        /// <summary>
+        /// 初始化检测UI控制
+        /// </summary>
+        private void InitializeDetectionUI()
+        {
+            if (!enableDetectionUIControl)
+            {
+                Debug.Log("🎮 UIManager: 检测UI控制未启用，跳过初始化");
+                return;
+            }
+
+            Debug.Log("🎮 UIManager: 开始初始化检测UI控制");
+
+            // 记录原始状态 - 确保crosshair默认是显示的
+            if (crosshair != null)
+            {
+                // 先确保crosshair是显示状态，再记录原始状态
+                crosshair.SetActive(true);
+                originalCrosshairState = true; // 强制设为true，因为crosshair应该默认显示
+                Debug.Log($"🎯 UIManager: Crosshair设置为显示状态并记录原始状态 - {originalCrosshairState} (对象: {crosshair.name})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Crosshair对象未设置！请在Inspector中拖入Crosshair对象。");
+                originalCrosshairState = true; // 默认值
+            }
+
+            if (magicCircle != null)
+            {
+                // magic circle 默认应该是隐藏的
+                magicCircle.SetActive(false);
+                originalMagicCircleState = false; // 强制设为false，因为magic circle应该默认隐藏
+                Debug.Log($"🔮 UIManager: Magic Circle设置为隐藏状态并记录原始状态 - {originalMagicCircleState} (对象: {magicCircle.name})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Magic Circle对象未设置！请在Inspector中拖入Magic Circle对象。");
+                originalMagicCircleState = false; // 默认值
+            }
+
+            isDetectionUIActive = false;
+            Debug.Log("✅ UIManager: 检测UI控制初始化完成");
+        }
+
+        /// <summary>
+        /// 处理检测进度事件
+        /// </summary>
+        private void HandleDetectionProgress(GameObject detectedObject, float progress)
+        {
+            if (!enableDetectionUIControl) return;
+
+            // 如果是第一次接收到进度事件（progress > 0且UI未激活），则开始检测
+            if (progress > 0f && !isDetectionUIActive)
+            {
+                StartDetectionUI();
+            }
+        }
+
+        /// <summary>
+        /// 处理检测取消事件
+        /// </summary>
+        private void HandleDetectionCancelled()
+        {
+            if (!enableDetectionUIControl) return;
+
+            Debug.Log("🎮 UIManager: 收到检测取消事件");
+
+            // 立即恢复
+            EndDetectionUI();
+
+            // 延迟恢复，确保状态正确（防止其他代码干扰）
+            StartCoroutine(DelayedRestoreDetectionUI());
+        }
+
+        /// <summary>
+        /// 延迟恢复检测UI状态（确保状态正确）
+        /// </summary>
+        private System.Collections.IEnumerator DelayedRestoreDetectionUI()
+        {
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame(); // 等待两帧确保所有更新完成
+
+            if (!isDetectionUIActive) // 只有在不是检测状态时才恢复
+            {
+                Debug.Log("🔄 UIManager: 延迟恢复检测UI状态");
+                ForceRestoreDetectionUIState();
+            }
+        }
+
+        /// <summary>
+        /// 开始检测UI状态
+        /// </summary>
+        private void StartDetectionUI()
+        {
+            if (isDetectionUIActive)
+            {
+                if (debugDetectionUI)
+                    Debug.Log("🎮 UIManager: 检测UI已经激活，跳过");
+                return;
+            }
+
+            isDetectionUIActive = true;
+
+            Debug.Log("🎮 UIManager: 开始检测UI状态");
+
+            // 隐藏crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(false);
+                Debug.Log("🎯 UIManager: Crosshair 已隐藏");
+            }
+
+            // 显示magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(true);
+                Debug.Log("🔮 UIManager: Magic Circle 已显示");
+            }
+        }
+
+        /// <summary>
+        /// 结束检测UI状态
+        /// </summary>
+        private void EndDetectionUI()
+        {
+            if (!isDetectionUIActive)
+            {
+                ForceRestoreDetectionUIState();
+                return;
+            }
+
+            isDetectionUIActive = false;
+            RestoreDetectionUIState();
+        }
+
+        /// <summary>
+        /// 恢复检测UI到原始状态
+        /// </summary>
+        private void RestoreDetectionUIState()
+        {
+            if (!enableDetectionUIControl) return;
+
+            Debug.Log("🔄 UIManager: 恢复检测UI到原始状态");
+
+            // 恢复crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(originalCrosshairState);
+            }
+
+            // 恢复magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(originalMagicCircleState);
+            }
+
+            isDetectionUIActive = false;
+        }
+
+        /// <summary>
+        /// 强制恢复检测UI状态（用于确保状态正确）
+        /// </summary>
+        private void ForceRestoreDetectionUIState()
+        {
+            if (!enableDetectionUIControl) return;
+
+            // 强制恢复crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(originalCrosshairState);
+            }
+
+            // 强制恢复magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(originalMagicCircleState);
+            }
+
+            isDetectionUIActive = false;
         }
 
         #endregion
@@ -98,6 +314,9 @@ namespace BugFixerGame
             // 按钮绑定
             SetupButtons();
 
+            // 初始化音频slider
+            InitializeAudioSliders();
+
             Debug.Log("UIManager 初始化完成");
         }
 
@@ -105,10 +324,20 @@ namespace BugFixerGame
         {
             // 主菜单按钮
             if (startGameButton)
-                startGameButton.onClick.AddListener(() => GameManager.Instance.StartGame());
+            {
+                startGameButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound();
+                    GameManager.Instance.StartGame();
+                });
+            }
 
             if (quitGameButton)
-                quitGameButton.onClick.AddListener(() => Application.Quit());
+            {
+                quitGameButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound();
+                    Application.Quit();
+                });
+            }
 
             // 暂停菜单按钮
             if (resumeButton)
@@ -116,6 +345,7 @@ namespace BugFixerGame
                 resumeButton.onClick.RemoveAllListeners();
                 resumeButton.onClick.AddListener(() =>
                 {
+                    AudioManager.Instance?.PlayButtonClickSound();
                     GameManager.Instance.ResumeGame();
                     // 重新锁定鼠标
                     var camCtrl = Camera.main?.GetComponent<CameraController>();
@@ -130,44 +360,147 @@ namespace BugFixerGame
             }
 
             if (returnToMenuButton)
-                returnToMenuButton.onClick.AddListener(() => GameManager.Instance.ReturnToMainMenu());
+                returnToMenuButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound();
+                    GameManager.Instance.ReturnToMainMenu();
+                });
 
-            // 原有的游戏结束按钮（可能是Bad End用的）
+            // 游戏结束按钮
             if (restartGameButton)
                 restartGameButton.onClick.AddListener(() => {
                     HideAllGameEndPanels();
                     RestartGame();
                 });
 
-            // Bad End按钮
             if (badEndRestartButton)
                 badEndRestartButton.onClick.AddListener(() => {
-                    Debug.Log("🔄 Bad End: 重新开始游戏");
                     HideAllGameEndPanels();
                     RestartGame();
                 });
 
             if (badEndMenuButton)
                 badEndMenuButton.onClick.AddListener(() => {
-                    Debug.Log("🏠 Bad End: 返回主菜单");
                     HideAllGameEndPanels();
                     GameManager.Instance.ReturnToMainMenu();
                 });
 
-            // Happy End按钮
             if (happyEndRestartButton)
                 happyEndRestartButton.onClick.AddListener(() => {
-                    Debug.Log("🔄 Happy End: 重新开始游戏");
                     HideAllGameEndPanels();
                     RestartGame();
                 });
 
             if (happyEndMenuButton)
                 happyEndMenuButton.onClick.AddListener(() => {
-                    Debug.Log("🏠 Happy End: 返回主菜单");
                     HideAllGameEndPanels();
                     GameManager.Instance.ReturnToMainMenu();
                 });
+        }
+
+        #endregion
+
+        #region 音频Slider管理
+
+        /// <summary>
+        /// 初始化音频Slider
+        /// </summary>
+        private void InitializeAudioSliders()
+        {
+            // 从PlayerPrefs加载保存的音量设置
+            float savedMusicVolume = PlayerPrefs.GetFloat("MusicVolume", 0.7f);
+            float savedSFXVolume = PlayerPrefs.GetFloat("SFXVolume", 0.8f);
+
+            // 设置AudioManager的音量
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.SetMusicVolume(savedMusicVolume);
+                AudioManager.Instance.SetSFXVolume(savedSFXVolume);
+            }
+
+            // 设置所有slider的属性和初始值
+            SetupSlider(mainMenuMusicSlider, savedMusicVolume, OnMusicVolumeChanged);
+            SetupSlider(mainMenuSFXSlider, savedSFXVolume, OnSFXVolumeChanged);
+            SetupSlider(pauseMusicSlider, savedMusicVolume, OnMusicVolumeChanged);
+            SetupSlider(pauseSFXSlider, savedSFXVolume, OnSFXVolumeChanged);
+
+            Debug.Log($"🔊 音频Slider初始化完成 - 音乐: {savedMusicVolume:F2}, 音效: {savedSFXVolume:F2}");
+        }
+
+        /// <summary>
+        /// 设置单个Slider的属性
+        /// </summary>
+        private void SetupSlider(Slider slider, float initialValue, UnityEngine.Events.UnityAction<float> callback)
+        {
+            if (slider != null)
+            {
+                slider.minValue = 0f;
+                slider.maxValue = 1f;
+                slider.value = initialValue;
+                slider.onValueChanged.AddListener(callback);
+            }
+        }
+
+        /// <summary>
+        /// 音乐音量改变回调
+        /// </summary>
+        private void OnMusicVolumeChanged(float value)
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.SetMusicVolume(value);
+            }
+
+            // 同步更新所有音乐slider的值
+            UpdateSliderValue(mainMenuMusicSlider, value);
+            UpdateSliderValue(pauseMusicSlider, value);
+
+            // 保存设置
+            PlayerPrefs.SetFloat("MusicVolume", value);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// 音效音量改变回调
+        /// </summary>
+        private void OnSFXVolumeChanged(float value)
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.SetSFXVolume(value);
+                // 播放测试音效
+                AudioManager.Instance.PlayButtonClickSound();
+            }
+
+            // 同步更新所有音效slider的值
+            UpdateSliderValue(mainMenuSFXSlider, value);
+            UpdateSliderValue(pauseSFXSlider, value);
+
+            // 保存设置
+            PlayerPrefs.SetFloat("SFXVolume", value);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// 更新slider的值（不触发回调）
+        /// </summary>
+        private void UpdateSliderValue(Slider slider, float value)
+        {
+            if (slider != null && !Mathf.Approximately(slider.value, value))
+            {
+                // 临时移除监听器，更新值，然后重新添加
+                slider.onValueChanged.RemoveAllListeners();
+                slider.value = value;
+
+                // 重新添加对应的监听器
+                if (slider == mainMenuMusicSlider || slider == pauseMusicSlider)
+                {
+                    slider.onValueChanged.AddListener(OnMusicVolumeChanged);
+                }
+                else if (slider == mainMenuSFXSlider || slider == pauseSFXSlider)
+                {
+                    slider.onValueChanged.AddListener(OnSFXVolumeChanged);
+                }
+            }
         }
 
         #endregion
@@ -179,62 +512,41 @@ namespace BugFixerGame
         /// </summary>
         private void CreateManaOrbs(int maxMana)
         {
-            Debug.Log($"🔮 开始创建魔法球UI，数量: {maxMana}");
-
             // 清除现有魔法球
             ClearManaOrbs();
 
             if (manaOrbsContainer == null || manaOrbPrefab == null)
             {
-                Debug.LogError("❌ 魔法球容器或预制体未设置！请在UIManager中配置这些引用。");
-                Debug.LogError($"容器: {(manaOrbsContainer != null ? "已设置" : "未设置")}, 预制体: {(manaOrbPrefab != null ? "已设置" : "未设置")}");
+                Debug.LogError("❌ 魔法球容器或预制体未设置！");
                 return;
             }
 
             currentMaxMana = maxMana;
-            int successCount = 0;
 
             for (int i = 0; i < maxMana; i++)
             {
-                try
+                // 实例化魔法球
+                GameObject orbGO = Instantiate(manaOrbPrefab, manaOrbsContainer);
+
+                // 设置位置
+                Vector3 position = CalculateOrbPosition(i);
+                orbGO.transform.localPosition = position;
+
+                // 获取SimpleManaOrb组件
+                SimpleManaOrb orbScript = orbGO.GetComponent<SimpleManaOrb>();
+                if (orbScript == null)
                 {
-                    // 实例化魔法球
-                    GameObject orbGO = Instantiate(manaOrbPrefab, manaOrbsContainer);
-
-                    // 设置位置
-                    Vector3 position = CalculateOrbPosition(i);
-                    orbGO.transform.localPosition = position;
-
-                    // 获取SimpleManaOrb组件
-                    SimpleManaOrb orbScript = orbGO.GetComponent<SimpleManaOrb>();
-                    if (orbScript == null)
-                    {
-                        Debug.LogError($"❌ 魔法球预制体 {manaOrbPrefab.name} 没有SimpleManaOrb组件！自动添加组件。");
-                        orbScript = orbGO.AddComponent<SimpleManaOrb>();
-                    }
-
-                    // 确保魔法球处于满状态
-                    orbScript.ResetToFull();
-
-                    // 添加到列表
-                    manaOrbs.Add(orbScript);
-
-                    // 设置名称便于调试
-                    orbGO.name = $"ManaOrb_{i + 1}";
-
-                    successCount++;
+                    orbScript = orbGO.AddComponent<SimpleManaOrb>();
                 }
-                catch (System.Exception e)
-                {
-                    Debug.LogError($"❌ 创建第{i + 1}个魔法球时出错: {e.Message}");
-                }
-            }
 
-            Debug.Log($"🔮 魔法球创建完成，成功创建 {successCount}/{maxMana} 个魔法球");
+                // 确保魔法球处于满状态
+                orbScript.ResetToFull();
 
-            if (successCount != maxMana)
-            {
-                Debug.LogWarning($"⚠️ 期望创建 {maxMana} 个魔法球，实际创建 {successCount} 个");
+                // 添加到列表
+                manaOrbs.Add(orbScript);
+
+                // 设置名称便于调试
+                orbGO.name = $"ManaOrb_{i + 1}";
             }
         }
 
@@ -264,15 +576,11 @@ namespace BugFixerGame
         /// </summary>
         private void ClearManaOrbs()
         {
-            Debug.Log($"🧹 开始清除魔法球UI，当前数量: {manaOrbs.Count}");
-
-            int clearedCount = 0;
             foreach (var orb in manaOrbs)
             {
                 if (orb != null && orb.gameObject != null)
                 {
                     DestroyImmediate(orb.gameObject);
-                    clearedCount++;
                 }
             }
             manaOrbs.Clear();
@@ -280,27 +588,17 @@ namespace BugFixerGame
             // 同时清理容器中可能残留的子对象
             if (manaOrbsContainer != null)
             {
-                int remainingCount = manaOrbsContainer.childCount;
-                if (remainingCount > 0)
+                for (int i = manaOrbsContainer.childCount - 1; i >= 0; i--)
                 {
-                    Debug.Log($"🧹 发现容器中还有 {remainingCount} 个残留子对象，正在清理...");
-
-                    // 从后往前删除，避免索引问题
-                    for (int i = manaOrbsContainer.childCount - 1; i >= 0; i--)
+                    Transform child = manaOrbsContainer.GetChild(i);
+                    if (child != null)
                     {
-                        Transform child = manaOrbsContainer.GetChild(i);
-                        if (child != null)
-                        {
-                            DestroyImmediate(child.gameObject);
-                        }
+                        DestroyImmediate(child.gameObject);
                     }
                 }
             }
 
-            // 重置状态
             currentMaxMana = 0;
-
-            Debug.Log($"🧹 魔法球清理完成，已清理 {clearedCount} 个魔法球对象");
         }
 
         /// <summary>
@@ -308,19 +606,14 @@ namespace BugFixerGame
         /// </summary>
         private void UpdateMana(int currentMana, int maxMana)
         {
-            Debug.Log($"📊 UpdateMana被调用: {currentMana}/{maxMana}, 当前魔法球数量: {manaOrbs.Count}");
-
             // 如果魔法球数量不匹配或为空，重新创建
             if (manaOrbs.Count != maxMana || currentMaxMana != maxMana || manaOrbs.Count == 0)
             {
-                Debug.Log($"🔄 魔法球数量不匹配，重新创建：当前{manaOrbs.Count}个，需要{maxMana}个");
                 CreateManaOrbs(maxMana);
             }
 
             // 更新魔法球状态
             UpdateManaOrbsDisplay(currentMana, maxMana);
-
-            Debug.Log($"📊 魔法值UI更新完成: {currentMana}/{maxMana}");
         }
 
         /// <summary>
@@ -339,7 +632,6 @@ namespace BugFixerGame
                     {
                         // 如果当前是空的，重置为满
                         manaOrbs[i].ResetToFull();
-                        Debug.Log($"🔮 魔法球 {i + 1} 重置为满蓝状态");
                     }
                 }
                 else
@@ -349,7 +641,6 @@ namespace BugFixerGame
                     {
                         // 如果当前是满的，播放变空动画
                         manaOrbs[i].PlayEmptyAnimation();
-                        Debug.Log($"✨ 魔法球 {i + 1} 播放变空动画");
                     }
                 }
             }
@@ -364,12 +655,7 @@ namespace BugFixerGame
         /// </summary>
         private void ShowBadEnd()
         {
-            Debug.Log("💀 显示Bad End界面");
-
-            // 注意：保持HUD显示，让玩家可以看到最终的魔法值状态
-            // SetPanel(hudPanel, false);
-
-            // 显示Bad End面板（优先使用badEndPanel，如果没有则使用gameOverPanel）
+            // 显示Bad End面板
             if (badEndPanel != null)
             {
                 StartCoroutine(ShowGameEndPanelWithFade(badEndPanel));
@@ -377,10 +663,6 @@ namespace BugFixerGame
             else if (gameOverPanel != null)
             {
                 StartCoroutine(ShowGameEndPanelWithFade(gameOverPanel));
-            }
-            else
-            {
-                Debug.LogError("❌ 没有找到Bad End面板！请在UIManager中设置badEndPanel或gameOverPanel引用。");
             }
 
             // 解锁鼠标以便点击UI
@@ -392,19 +674,10 @@ namespace BugFixerGame
         /// </summary>
         private void ShowHappyEnd()
         {
-            Debug.Log("🎉 显示Happy End界面");
-
-            // 注意：保持HUD显示，让玩家可以看到最终的魔法值状态
-            // SetPanel(hudPanel, false);
-
             // 显示Happy End面板
             if (happyEndPanel != null)
             {
                 StartCoroutine(ShowGameEndPanelWithFade(happyEndPanel));
-            }
-            else
-            {
-                Debug.LogError("❌ 没有找到Happy End面板！请在UIManager中设置happyEndPanel引用。");
             }
 
             // 解锁鼠标以便点击UI
@@ -416,20 +689,8 @@ namespace BugFixerGame
         /// </summary>
         private void HandleGameEnded(string endType)
         {
-            Debug.Log($"🎮 收到游戏结束事件: {endType}");
-
-            switch (endType.ToLower())
-            {
-                case "badend":
-                    // Bad End已经在ShowBadEnd中处理
-                    break;
-                case "happyend":
-                    // Happy End已经在ShowHappyEnd中处理
-                    break;
-                default:
-                    Debug.LogWarning($"⚠️ 未知的游戏结束类型: {endType}");
-                    break;
-            }
+            // 游戏结束时恢复检测UI状态
+            RestoreDetectionUIState();
         }
 
         /// <summary>
@@ -451,15 +712,13 @@ namespace BugFixerGame
 
                 while (elapsed < gameEndFadeTime)
                 {
-                    elapsed += Time.unscaledDeltaTime; // 使用unscaledDeltaTime以防游戏被暂停
+                    elapsed += Time.unscaledDeltaTime;
                     canvasGroup.alpha = Mathf.Lerp(0f, 1f, elapsed / gameEndFadeTime);
                     yield return null;
                 }
 
                 canvasGroup.alpha = 1f;
             }
-
-            Debug.Log($"✅ 游戏结束面板 {panel.name} 显示完成");
         }
 
         /// <summary>
@@ -470,7 +729,6 @@ namespace BugFixerGame
             SetPanel(gameOverPanel, false);
             SetPanel(happyEndPanel, false);
             SetPanel(badEndPanel, false);
-            Debug.Log("🙈 所有游戏结束面板已隐藏");
         }
 
         /// <summary>
@@ -488,8 +746,6 @@ namespace BugFixerGame
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
-
-            Debug.Log("🖱️ 鼠标已解锁用于UI交互");
         }
 
         #endregion
@@ -499,7 +755,6 @@ namespace BugFixerGame
         private void TogglePauseMenu(bool isPaused)
         {
             SetPanel(pausePanel, isPaused);
-            Debug.Log($"⏸️ 暂停菜单: {(isPaused ? "显示" : "隐藏")}");
         }
 
         private void SetPanel(GameObject panel, bool state)
@@ -518,8 +773,6 @@ namespace BugFixerGame
                 int currentMana = GameManager.Instance.GetCurrentMana();
                 int maxMana = GameManager.Instance.GetMaxMana();
 
-                Debug.Log($"🎮 ShowHUD: 强制重新生成魔法球UI - {currentMana}/{maxMana}");
-
                 // 清除现有魔法球
                 ClearManaOrbs();
 
@@ -530,7 +783,13 @@ namespace BugFixerGame
                 UpdateManaOrbsDisplay(currentMana, maxMana);
             }
 
-            Debug.Log("🎮 显示游戏HUD - 魔法球UI已重新生成");
+            // 重置检测UI到默认状态
+            if (crosshair != null) crosshair.SetActive(true);
+            if (magicCircle != null) magicCircle.SetActive(false);
+            isDetectionUIActive = false;
+
+            //切换到游戏音乐
+            AudioManager.Instance?.OnShowGameHUD();
         }
 
         /// <summary>
@@ -546,7 +805,13 @@ namespace BugFixerGame
             // 清理魔法球UI
             ClearManaOrbs();
 
-            Debug.Log("🏠 显示主菜单 - 魔法球UI已清理");
+            // 重置检测UI到默认状态
+            if (crosshair != null) crosshair.SetActive(true);
+            if (magicCircle != null) magicCircle.SetActive(false);
+            isDetectionUIActive = false;
+
+            // 切换到主菜单音乐
+            AudioManager.Instance?.OnShowMainMenu();
         }
 
         #endregion
@@ -568,7 +833,6 @@ namespace BugFixerGame
                     manaOrbs[i].transform.localPosition = newPosition;
                 }
             }
-            Debug.Log($"📏 魔法球间距设置为: {spacing}");
         }
 
         /// <summary>
@@ -586,245 +850,27 @@ namespace BugFixerGame
                     manaOrbs[i].transform.localPosition = newPosition;
                 }
             }
-            Debug.Log($"📐 布局方向设置为: {(horizontal ? "水平" : "垂直")}");
         }
 
-        /// <summary>
-        /// 手动刷新魔法球显示
-        /// </summary>
-        public void RefreshManaDisplay()
-        {
-            if (GameManager.Instance != null)
-            {
-                UpdateMana(GameManager.Instance.GetCurrentMana(), GameManager.Instance.GetMaxMana());
-            }
-        }
+        #endregion
 
-        /// <summary>
-        /// 强制重新生成魔法球UI
-        /// </summary>
-        public void ForceRegenerateManaOrbs()
-        {
-            Debug.Log("🔄 强制重新生成魔法球UI");
-
-            if (GameManager.Instance != null)
-            {
-                int currentMana = GameManager.Instance.GetCurrentMana();
-                int maxMana = GameManager.Instance.GetMaxMana();
-
-                // 清除现有魔法球
-                ClearManaOrbs();
-
-                // 重新创建魔法球
-                CreateManaOrbs(maxMana);
-
-                // 更新魔法球状态
-                UpdateManaOrbsDisplay(currentMana, maxMana);
-
-                Debug.Log($"🔮 魔法球UI重新生成完成: {currentMana}/{maxMana}");
-            }
-            else
-            {
-                Debug.LogWarning("⚠️ GameManager实例不存在，无法重新生成魔法球UI");
-            }
-        }
-
-        /// <summary>
-        /// 获取当前魔法球数量
-        /// </summary>
-        public int GetManaOrbCount() => manaOrbs.Count;
-
-        /// <summary>
-        /// 获取指定索引的魔法球
-        /// </summary>
-        public SimpleManaOrb GetManaOrb(int index)
-        {
-            if (index >= 0 && index < manaOrbs.Count)
-                return manaOrbs[index];
-            return null;
-        }
-
-        /// <summary>
-        /// 获取所有魔法球的状态信息
-        /// </summary>
-        public string GetManaOrbsStatus()
-        {
-            string status = "魔法球状态:\n";
-            for (int i = 0; i < manaOrbs.Count; i++)
-            {
-                if (manaOrbs[i] != null)
-                {
-                    status += $"  {i + 1}. {manaOrbs[i].GetStatusDescription()}\n";
-                }
-            }
-            return status;
-        }
-
-        /// <summary>
-        /// 检查是否有游戏结束面板正在显示
-        /// </summary>
-        public bool IsGameEndPanelShowing()
-        {
-            return (gameOverPanel != null && gameOverPanel.activeInHierarchy) ||
-                   (happyEndPanel != null && happyEndPanel.activeInHierarchy) ||
-                   (badEndPanel != null && badEndPanel.activeInHierarchy);
-        }
-
-        /// <summary>
-        /// 手动显示Bad End面板（用于测试）
-        /// </summary>
-        public void ShowBadEndManual()
-        {
-            ShowBadEnd();
-        }
-
-        /// <summary>
-        /// 手动显示Happy End面板（用于测试）
-        /// </summary>
-        public void ShowHappyEndManual()
-        {
-            ShowHappyEnd();
-        }
+        #region 重启游戏
 
         /// <summary>
         /// 重启游戏（确保删除旧实例）
         /// </summary>
         private void RestartGame()
         {
-            Debug.Log("🔄 UIManager: 开始重启游戏流程");
-
             // 先清理当前UI状态
             HideAllGameEndPanels();
             ClearManaOrbs();
+            RestoreDetectionUIState();
 
             // 确保GameManager先清理旧的游戏实例
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.CleanupCurrentGame();
                 GameManager.Instance.StartGame();
-            }
-            else
-            {
-                Debug.LogError("❌ GameManager实例不存在，无法重启游戏");
-            }
-        }
-
-        #endregion
-
-        #region 调试功能
-
-        [Header("调试")]
-        [SerializeField] private bool showDebugInfo = false;
-
-        private void OnGUI()
-        {
-            if (!showDebugInfo) return;
-
-            GUILayout.BeginArea(new Rect(Screen.width - 380, Screen.height - 300, 360, 290));
-            GUILayout.Label("=== UIManager调试 ===");
-            GUILayout.Label($"魔法球数量: {manaOrbs.Count}");
-            GUILayout.Label($"当前间距: {orbSpacing}");
-            GUILayout.Label($"布局方向: {(useHorizontalLayout ? "水平" : "垂直")}");
-
-            if (GameManager.Instance != null)
-            {
-                GUILayout.Label($"当前魔法值: {GameManager.Instance.GetCurrentMana()}/{GameManager.Instance.GetMaxMana()}");
-                GUILayout.Label($"游戏结束: {GameManager.Instance.IsGameEnded()}");
-                if (GameManager.Instance.IsGameEnded())
-                {
-                    GUILayout.Label($"结束原因: {GameManager.Instance.GetGameEndReason()}");
-                }
-            }
-
-            GUILayout.Space(10);
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("测试Bad End"))
-            {
-                ShowBadEndManual();
-            }
-            if (GUILayout.Button("测试Happy End"))
-            {
-                ShowHappyEndManual();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("隐藏结束面板"))
-            {
-                HideAllGameEndPanels();
-            }
-            if (GUILayout.Button("重新生成魔法球"))
-            {
-                ForceRegenerateManaOrbs();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("显示主菜单"))
-            {
-                ShowMainMenu();
-            }
-            if (GUILayout.Button("显示HUD"))
-            {
-                ShowHUD();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.EndArea();
-        }
-
-        [ContextMenu("🔍 检查UI引用")]
-        private void CheckUIReferences()
-        {
-            Debug.Log("=== UIManager 引用检查 ===");
-            Debug.Log($"Mana Orbs Container: {(manaOrbsContainer != null ? manaOrbsContainer.name : "未设置")}");
-            Debug.Log($"Mana Orb Prefab: {(manaOrbPrefab != null ? manaOrbPrefab.name : "未设置")}");
-
-            Debug.Log($"主菜单面板: {(mainMenuPanel != null ? mainMenuPanel.name : "未设置")}");
-            Debug.Log($"HUD面板: {(hudPanel != null ? hudPanel.name : "未设置")}");
-            Debug.Log($"暂停面板: {(pausePanel != null ? pausePanel.name : "未设置")}");
-            Debug.Log($"游戏结束面板: {(gameOverPanel != null ? gameOverPanel.name : "未设置")}");
-            Debug.Log($"Happy End面板: {(happyEndPanel != null ? happyEndPanel.name : "未设置")}");
-            Debug.Log($"Bad End面板: {(badEndPanel != null ? badEndPanel.name : "未设置")}");
-
-            Debug.Log($"当前魔法球数量: {manaOrbs.Count}");
-            Debug.Log($"布局参数: 间距={orbSpacing}, 水平={useHorizontalLayout}, 起始位置={startPosition}");
-        }
-
-        [ContextMenu("💀 测试Bad End")]
-        private void TestBadEnd()
-        {
-            if (Application.isPlaying)
-            {
-                ShowBadEndManual();
-            }
-        }
-
-        [ContextMenu("🎉 测试Happy End")]
-        private void TestHappyEnd()
-        {
-            if (Application.isPlaying)
-            {
-                ShowHappyEndManual();
-            }
-        }
-
-        [ContextMenu("🙈 隐藏所有结束面板")]
-        private void TestHideAllGameEndPanels()
-        {
-            if (Application.isPlaying)
-            {
-                HideAllGameEndPanels();
-            }
-        }
-
-        [ContextMenu("🎮 显示HUD")]
-        private void TestShowHUD()
-        {
-            if (Application.isPlaying)
-            {
-                ShowHUD();
             }
         }
 
