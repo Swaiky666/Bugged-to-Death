@@ -302,7 +302,7 @@ namespace BugFixerGame
         private void UpdateTitle()
         {
             if (!showBugCount || titleText == null) return;
-
+            
             // 只计算有效的Bug信息数量
             int validBugCount = currentInfos.Count(info => info.Type == InfoType.Bug);
             titleText.text = $"Info [{currentRoomId}] (Bug: {validBugCount})";

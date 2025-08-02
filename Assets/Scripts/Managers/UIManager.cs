@@ -1,4 +1,4 @@
-﻿// UIManager.cs - 完整的UI管理系统，包含游戏结束界面
+﻿// UIManager.cs - 完整的UI管理系统，包含游戏结束界面和检测UI控制
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,6 +15,12 @@ namespace BugFixerGame
         [SerializeField] private GameObject gameOverPanel;     // Bad End面板
         [SerializeField] private GameObject happyEndPanel;     // Happy End面板
         [SerializeField] private GameObject badEndPanel;       // 额外的Bad End面板（如果需要）
+
+        [Header("检测UI控制")]
+        [SerializeField] private GameObject crosshair;             // 十字准心对象
+        [SerializeField] private GameObject magicCircle;           // 魔法圈对象
+        [SerializeField] private bool enableDetectionUIControl = true;      // 是否启用检测UI控制
+        [SerializeField] private bool debugDetectionUI = true;             // 调试检测UI（默认开启）
 
         [Header("魔法球UI设置")]
         [SerializeField] private Transform manaOrbsContainer;           // 魔法球容器
@@ -46,6 +52,11 @@ namespace BugFixerGame
         private List<SimpleManaOrb> manaOrbs = new List<SimpleManaOrb>();
         private int currentMaxMana = 0;
 
+        // 检测UI状态管理
+        private bool originalCrosshairState = true;
+        private bool originalMagicCircleState = false;
+        private bool isDetectionUIActive = false;
+
         public static UIManager Instance { get; private set; }
 
         #region Unity生命周期
@@ -56,6 +67,7 @@ namespace BugFixerGame
             {
                 Instance = this;
                 InitializeUI();
+                InitializeDetectionUI();
             }
             else
             {
@@ -70,6 +82,10 @@ namespace BugFixerGame
             GameManager.OnGameOver += ShowBadEnd;           // 订阅Bad End事件
             GameManager.OnHappyEnd += ShowHappyEnd;         // 订阅Happy End事件
             GameManager.OnGameEnded += HandleGameEnded;     // 订阅通用游戏结束事件
+
+            // 订阅Player的检测相关事件
+            Player.OnObjectHoldProgress += HandleDetectionProgress;
+            Player.OnHoldCancelled += HandleDetectionCancelled;
         }
 
         private void OnDisable()
@@ -79,6 +95,294 @@ namespace BugFixerGame
             GameManager.OnGameOver -= ShowBadEnd;
             GameManager.OnHappyEnd -= ShowHappyEnd;
             GameManager.OnGameEnded -= HandleGameEnded;
+
+            // 取消订阅Player事件
+            Player.OnObjectHoldProgress -= HandleDetectionProgress;
+            Player.OnHoldCancelled -= HandleDetectionCancelled;
+
+            // 恢复检测UI状态
+            RestoreDetectionUIState();
+        }
+
+        #endregion
+
+        #region 检测UI控制
+
+        /// <summary>
+        /// 初始化检测UI控制
+        /// </summary>
+        private void InitializeDetectionUI()
+        {
+            if (!enableDetectionUIControl)
+            {
+                Debug.Log("🎮 UIManager: 检测UI控制未启用，跳过初始化");
+                return;
+            }
+
+            Debug.Log("🎮 UIManager: 开始初始化检测UI控制");
+
+            // 记录原始状态 - 确保crosshair默认是显示的
+            if (crosshair != null)
+            {
+                // 先确保crosshair是显示状态，再记录原始状态
+                crosshair.SetActive(true);
+                originalCrosshairState = true; // 强制设为true，因为crosshair应该默认显示
+                Debug.Log($"🎯 UIManager: Crosshair设置为显示状态并记录原始状态 - {originalCrosshairState} (对象: {crosshair.name})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Crosshair对象未设置！请在Inspector中拖入Crosshair对象。");
+                originalCrosshairState = true; // 默认值
+            }
+
+            if (magicCircle != null)
+            {
+                // magic circle 默认应该是隐藏的
+                magicCircle.SetActive(false);
+                originalMagicCircleState = false; // 强制设为false，因为magic circle应该默认隐藏
+                Debug.Log($"🔮 UIManager: Magic Circle设置为隐藏状态并记录原始状态 - {originalMagicCircleState} (对象: {magicCircle.name})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Magic Circle对象未设置！请在Inspector中拖入Magic Circle对象。");
+                originalMagicCircleState = false; // 默认值
+            }
+
+            isDetectionUIActive = false;
+            Debug.Log("✅ UIManager: 检测UI控制初始化完成");
+            Debug.Log($"✅ UIManager: 初始化总结 - Crosshair: {(crosshair != null ? crosshair.name : "null")} ({originalCrosshairState}), Magic Circle: {(magicCircle != null ? magicCircle.name : "null")} ({originalMagicCircleState})");
+        }
+
+        /// <summary>
+        /// 处理检测进度事件
+        /// </summary>
+        private void HandleDetectionProgress(GameObject detectedObject, float progress)
+        {
+            if (!enableDetectionUIControl) return;
+
+            // 如果是第一次接收到进度事件（progress > 0且UI未激活），则开始检测
+            if (progress > 0f && !isDetectionUIActive)
+            {
+                StartDetectionUI();
+            }
+        }
+
+        /// <summary>
+        /// 处理检测取消事件
+        /// </summary>
+        private void HandleDetectionCancelled()
+        {
+            if (!enableDetectionUIControl) return;
+
+            Debug.Log("🎮 UIManager: 收到检测取消事件");
+
+            // 立即恢复
+            EndDetectionUI();
+
+            // 延迟恢复，确保状态正确（防止其他代码干扰）
+            StartCoroutine(DelayedRestoreDetectionUI());
+        }
+
+        /// <summary>
+        /// 延迟恢复检测UI状态（确保状态正确）
+        /// </summary>
+        private System.Collections.IEnumerator DelayedRestoreDetectionUI()
+        {
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame(); // 等待两帧确保所有更新完成
+
+            if (!isDetectionUIActive) // 只有在不是检测状态时才恢复
+            {
+                Debug.Log("🔄 UIManager: 延迟恢复检测UI状态");
+                ForceRestoreDetectionUIState();
+            }
+        }
+
+        /// <summary>
+        /// 开始检测UI状态
+        /// </summary>
+        private void StartDetectionUI()
+        {
+            if (isDetectionUIActive)
+            {
+                if (debugDetectionUI)
+                    Debug.Log("🎮 UIManager: 检测UI已经激活，跳过");
+                return;
+            }
+
+            isDetectionUIActive = true;
+
+            Debug.Log("🎮 UIManager: 开始检测UI状态");
+            Debug.Log($"🎮 UIManager: 当前状态 - Crosshair: {(crosshair != null ? crosshair.activeInHierarchy.ToString() : "null")}, Magic Circle: {(magicCircle != null ? magicCircle.activeInHierarchy.ToString() : "null")}");
+
+            // 隐藏crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(false);
+                Debug.Log("🎯 UIManager: Crosshair 已隐藏");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Crosshair 对象为null，无法隐藏");
+            }
+
+            // 显示magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(true);
+                Debug.Log("🔮 UIManager: Magic Circle 已显示");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Magic Circle 对象为null，无法显示");
+            }
+        }
+
+        /// <summary>
+        /// 结束检测UI状态
+        /// </summary>
+        private void EndDetectionUI()
+        {
+            if (!isDetectionUIActive)
+            {
+                Debug.Log("🎮 UIManager: 检测UI未激活，直接恢复状态");
+                // 即使UI未激活，也要确保恢复到正确状态
+                ForceRestoreDetectionUIState();
+                return;
+            }
+
+            isDetectionUIActive = false;
+
+            Debug.Log("🎮 UIManager: 结束检测UI状态");
+
+            RestoreDetectionUIState();
+        }
+
+        /// <summary>
+        /// 恢复检测UI到原始状态
+        /// </summary>
+        private void RestoreDetectionUIState()
+        {
+            if (!enableDetectionUIControl)
+            {
+                Debug.Log("🎮 UIManager: 检测UI控制未启用，跳过恢复");
+                return;
+            }
+
+            Debug.Log("🔄 UIManager: 恢复检测UI到原始状态");
+            Debug.Log($"🔄 UIManager: 原始状态 - Crosshair: {originalCrosshairState}, Magic Circle: {originalMagicCircleState}");
+
+            // 恢复crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(originalCrosshairState);
+                Debug.Log($"🎯 UIManager: Crosshair 已恢复为 {originalCrosshairState} (实际状态: {crosshair.activeInHierarchy})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Crosshair 对象为null，无法恢复");
+            }
+
+            // 恢复magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(originalMagicCircleState);
+                Debug.Log($"🔮 UIManager: Magic Circle 已恢复为 {originalMagicCircleState} (实际状态: {magicCircle.activeInHierarchy})");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ UIManager: Magic Circle 对象为null，无法恢复");
+            }
+
+            isDetectionUIActive = false;
+        }
+
+        /// <summary>
+        /// 重置检测UI到默认状态
+        /// </summary>
+        public void ResetDetectionUIToDefault()
+        {
+            Debug.Log("🔄 UIManager: 重置检测UI到默认状态");
+
+            // 重置原始状态为期望的默认值
+            originalCrosshairState = true;  // crosshair 应该默认显示
+            originalMagicCircleState = false; // magic circle 应该默认隐藏
+
+            // 设置UI到默认状态
+            if (crosshair != null)
+            {
+                crosshair.SetActive(true);
+                Debug.Log("🎯 UIManager: Crosshair 重置为显示状态");
+            }
+
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(false);
+                Debug.Log("🔮 UIManager: Magic Circle 重置为隐藏状态");
+            }
+
+            isDetectionUIActive = false;
+            Debug.Log("✅ UIManager: 检测UI已重置到默认状态");
+        }
+
+        /// <summary>
+        /// 强制显示Crosshair（紧急修复用）
+        /// </summary>
+        public void ForceShowCrosshair()
+        {
+            Debug.Log("🆘 UIManager: 强制显示Crosshair");
+
+            if (crosshair != null)
+            {
+                crosshair.SetActive(true);
+                originalCrosshairState = true; // 同时更新原始状态
+                Debug.Log("🎯 UIManager: Crosshair 已强制显示并更新原始状态");
+            }
+            else
+            {
+                Debug.LogError("❌ UIManager: Crosshair 对象为null，无法强制显示");
+            }
+        }
+
+        /// <summary>
+        /// 强制恢复检测UI状态（用于确保状态正确）
+        /// </summary>
+        private void ForceRestoreDetectionUIState()
+        {
+            if (!enableDetectionUIControl) return;
+
+            Debug.Log("🔄 UIManager: 强制恢复检测UI状态");
+
+            // 强制恢复crosshair
+            if (crosshair != null)
+            {
+                crosshair.SetActive(originalCrosshairState);
+                Debug.Log($"🎯 UIManager: Crosshair 强制恢复为 {originalCrosshairState}");
+            }
+
+            // 强制恢复magic circle
+            if (magicCircle != null)
+            {
+                magicCircle.SetActive(originalMagicCircleState);
+                Debug.Log($"🔮 UIManager: Magic Circle 强制恢复为 {originalMagicCircleState}");
+            }
+
+            isDetectionUIActive = false;
+        }
+
+        /// <summary>
+        /// 手动设置检测UI状态（用于测试或外部调用）
+        /// </summary>
+        public void SetDetectionUIState(bool isDetecting)
+        {
+            if (isDetecting)
+            {
+                StartDetectionUI();
+            }
+            else
+            {
+                EndDetectionUI();
+            }
         }
 
         #endregion
@@ -418,6 +722,9 @@ namespace BugFixerGame
         {
             Debug.Log($"🎮 收到游戏结束事件: {endType}");
 
+            // 游戏结束时恢复检测UI状态
+            RestoreDetectionUIState();
+
             switch (endType.ToLower())
             {
                 case "badend":
@@ -530,7 +837,10 @@ namespace BugFixerGame
                 UpdateManaOrbsDisplay(currentMana, maxMana);
             }
 
-            Debug.Log("🎮 显示游戏HUD - 魔法球UI已重新生成");
+            // 重置检测UI到默认状态（确保crosshair显示）
+            ResetDetectionUIToDefault();
+
+            Debug.Log("🎮 显示游戏HUD - 魔法球UI已重新生成，检测UI已重置到默认状态");
         }
 
         /// <summary>
@@ -546,7 +856,10 @@ namespace BugFixerGame
             // 清理魔法球UI
             ClearManaOrbs();
 
-            Debug.Log("🏠 显示主菜单 - 魔法球UI已清理");
+            // 重置检测UI到默认状态
+            ResetDetectionUIToDefault();
+
+            Debug.Log("🏠 显示主菜单 - 魔法球UI已清理，检测UI已重置到默认状态");
         }
 
         #endregion
@@ -696,6 +1009,7 @@ namespace BugFixerGame
             // 先清理当前UI状态
             HideAllGameEndPanels();
             ClearManaOrbs();
+            RestoreDetectionUIState();
 
             // 确保GameManager先清理旧的游戏实例
             if (GameManager.Instance != null)
@@ -709,6 +1023,42 @@ namespace BugFixerGame
             }
         }
 
+        /// <summary>
+        /// 设置检测UI对象引用
+        /// </summary>
+        public void SetDetectionUIObjects(GameObject crosshairObj, GameObject magicCircleObj)
+        {
+            crosshair = crosshairObj;
+            magicCircle = magicCircleObj;
+            InitializeDetectionUI();
+            Debug.Log($"🎮 UIManager: 检测UI对象已设置 - Crosshair: {(crosshair != null ? crosshair.name : "null")}, Magic Circle: {(magicCircle != null ? magicCircle.name : "null")}");
+        }
+
+        /// <summary>
+        /// 启用/禁用检测UI控制
+        /// </summary>
+        public void SetDetectionUIControlEnabled(bool enabled)
+        {
+            enableDetectionUIControl = enabled;
+            Debug.Log($"🎮 UIManager: 检测UI控制 {(enabled ? "启用" : "禁用")}");
+
+            if (!enabled)
+            {
+                RestoreDetectionUIState();
+            }
+        }
+
+        /// <summary>
+        /// 获取检测UI状态信息
+        /// </summary>
+        public string GetDetectionUIStatus()
+        {
+            return $"检测UI控制启用: {enableDetectionUIControl}\n" +
+                   $"检测UI激活: {isDetectionUIActive}\n" +
+                   $"Crosshair: {(crosshair != null ? (crosshair.activeInHierarchy ? "显示" : "隐藏") : "未设置")}\n" +
+                   $"Magic Circle: {(magicCircle != null ? (magicCircle.activeInHierarchy ? "显示" : "隐藏") : "未设置")}";
+        }
+
         #endregion
 
         #region 调试功能
@@ -720,7 +1070,7 @@ namespace BugFixerGame
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(Screen.width - 380, Screen.height - 300, 360, 290));
+            GUILayout.BeginArea(new Rect(Screen.width - 380, Screen.height - 350, 360, 340));
             GUILayout.Label("=== UIManager调试 ===");
             GUILayout.Label($"魔法球数量: {manaOrbs.Count}");
             GUILayout.Label($"当前间距: {orbSpacing}");
@@ -735,6 +1085,14 @@ namespace BugFixerGame
                     GUILayout.Label($"结束原因: {GameManager.Instance.GetGameEndReason()}");
                 }
             }
+
+            // 检测UI状态
+            GUILayout.Space(5);
+            GUILayout.Label("=== 检测UI状态 ===");
+            GUILayout.Label($"UI控制启用: {enableDetectionUIControl}");
+            GUILayout.Label($"检测UI激活: {isDetectionUIActive}");
+            GUILayout.Label($"Crosshair: {(crosshair != null ? (crosshair.activeInHierarchy ? "显示" : "隐藏") : "未设置")}");
+            GUILayout.Label($"Magic Circle: {(magicCircle != null ? (magicCircle.activeInHierarchy ? "显示" : "隐藏") : "未设置")}");
 
             GUILayout.Space(10);
 
@@ -771,6 +1129,39 @@ namespace BugFixerGame
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("开始检测UI"))
+            {
+                SetDetectionUIState(true);
+            }
+            if (GUILayout.Button("结束检测UI"))
+            {
+                SetDetectionUIState(false);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("强制恢复检测UI"))
+            {
+                ForceRestoreDetectionUIState();
+            }
+            if (GUILayout.Button("重新初始化检测UI"))
+            {
+                InitializeDetectionUI();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("🆘 强制显示Crosshair"))
+            {
+                ForceShowCrosshair();
+            }
+            if (GUILayout.Button("🔄 重置到默认状态"))
+            {
+                ResetDetectionUIToDefault();
+            }
+            GUILayout.EndHorizontal();
+
             GUILayout.EndArea();
         }
 
@@ -787,6 +1178,9 @@ namespace BugFixerGame
             Debug.Log($"游戏结束面板: {(gameOverPanel != null ? gameOverPanel.name : "未设置")}");
             Debug.Log($"Happy End面板: {(happyEndPanel != null ? happyEndPanel.name : "未设置")}");
             Debug.Log($"Bad End面板: {(badEndPanel != null ? badEndPanel.name : "未设置")}");
+
+            Debug.Log($"Crosshair: {(crosshair != null ? crosshair.name : "未设置")}");
+            Debug.Log($"Magic Circle: {(magicCircle != null ? magicCircle.name : "未设置")}");
 
             Debug.Log($"当前魔法球数量: {manaOrbs.Count}");
             Debug.Log($"布局参数: 间距={orbSpacing}, 水平={useHorizontalLayout}, 起始位置={startPosition}");
@@ -825,6 +1219,96 @@ namespace BugFixerGame
             if (Application.isPlaying)
             {
                 ShowHUD();
+            }
+        }
+
+        [ContextMenu("🎯 测试检测UI")]
+        private void TestDetectionUI()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🧪 测试检测UI控制...");
+                Debug.Log($"当前状态: {GetDetectionUIStatus()}");
+
+                // 切换检测UI状态
+                SetDetectionUIState(!isDetectionUIActive);
+                Debug.Log($"切换后状态: {GetDetectionUIStatus()}");
+            }
+        }
+
+        [ContextMenu("🆘 强制显示Crosshair")]
+        private void TestForceShowCrosshair()
+        {
+            ForceShowCrosshair();
+        }
+
+        [ContextMenu("🔄 重置检测UI到默认状态")]
+        private void TestResetDetectionUIToDefault()
+        {
+            ResetDetectionUIToDefault();
+        }
+
+        [ContextMenu("🔄 恢复检测UI状态")]
+        private void TestRestoreDetectionUI()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🧪 手动恢复检测UI状态...");
+                RestoreDetectionUIState();
+                Debug.Log("检测UI已恢复到原始状态");
+            }
+        }
+
+        [ContextMenu("🔧 强制恢复检测UI状态")]
+        private void TestForceRestoreDetectionUI()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🧪 强制恢复检测UI状态...");
+                ForceRestoreDetectionUIState();
+                Debug.Log("检测UI已强制恢复");
+            }
+        }
+
+        [ContextMenu("🔄 重新初始化检测UI")]
+        private void TestReinitializeDetectionUI()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🧪 重新初始化检测UI...");
+                InitializeDetectionUI();
+                Debug.Log("检测UI重新初始化完成");
+            }
+        }
+
+        [ContextMenu("🔍 检查检测UI状态")]
+        private void TestCheckDetectionUIStatus()
+        {
+            Debug.Log("=== 检测UI状态检查 ===");
+            Debug.Log($"UI控制启用: {enableDetectionUIControl}");
+            Debug.Log($"检测UI激活: {isDetectionUIActive}");
+            Debug.Log($"调试模式: {debugDetectionUI}");
+
+            if (crosshair != null)
+            {
+                Debug.Log($"Crosshair对象: {crosshair.name}");
+                Debug.Log($"Crosshair当前状态: {crosshair.activeInHierarchy}");
+                Debug.Log($"Crosshair原始状态: {originalCrosshairState}");
+            }
+            else
+            {
+                Debug.Log("Crosshair对象: null");
+            }
+
+            if (magicCircle != null)
+            {
+                Debug.Log($"Magic Circle对象: {magicCircle.name}");
+                Debug.Log($"Magic Circle当前状态: {magicCircle.activeInHierarchy}");
+                Debug.Log($"Magic Circle原始状态: {originalMagicCircleState}");
+            }
+            else
+            {
+                Debug.Log("Magic Circle对象: null");
             }
         }
 
