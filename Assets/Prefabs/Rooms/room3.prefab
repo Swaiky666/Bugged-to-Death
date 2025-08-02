@@ -7342,6 +7342,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bugType: 1
   startWithBugActive: 1
+  bugDescription: 
+  bugTitle: 
+  showInInfoPanel: 1
   correctObject: {fileID: 1671203373475832431}
   popupAnimationTime: 0.5
   popupCurve:
@@ -7397,7 +7400,6 @@ MonoBehaviour:
   useURPCompatibility: 1
   transparentMaterialPrefab: {fileID: 0}
   debugFlickering: 1
-  autoFixMaterialTransparency: 1
   showDebugInfo: 0
 --- !u!1001 &6576313202039242077
 PrefabInstance:
