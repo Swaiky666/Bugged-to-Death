@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_S_01_02
+  m_Name: M_S_02_01
   m_Shader: {fileID: 4800000, guid: 078b2a90d062e49c9903390f113619d3, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -153,22 +153,22 @@ Material:
     - __dummy__: 0
     m_Colors:
     - _AmbientColor: {r: 0.21698111, g: 0.21698111, b: 0.21698111, a: 0}
-    - _BackBottomColor: {r: 0.40392154, g: 0.19999996, b: 0, a: 0}
+    - _BackBottomColor: {r: 0.40566036, g: 0.20141175, b: 0, a: 0}
     - _BackTopColor: {r: 0.816, g: 0.3724307, b: 0.020923076, a: 0}
     - _BaseColor: {r: 1, g: 0.482, b: 0.482, a: 1}
-    - _BottomColor: {r: 0.40392157, g: 0.2, b: 0, a: 0}
+    - _BottomColor: {r: 0.4056604, g: 0.2014118, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _FrontBottomColor: {r: 0.40392154, g: 0.19999996, b: 0, a: 0}
+    - _FrontBottomColor: {r: 0.40566036, g: 0.20141175, b: 0, a: 0}
     - _FrontTopColor: {r: 0.816, g: 0.3724307, b: 0.020923076, a: 0}
     - _HColor: {r: 1, g: 1, b: 1, a: 1}
-    - _LeftBottomColor: {r: 0.40392154, g: 0.19999996, b: 0, a: 0}
+    - _LeftBottomColor: {r: 0.40566036, g: 0.20141175, b: 0, a: 0}
     - _LeftTopColor: {r: 0.816, g: 0.3724307, b: 0.020923076, a: 0}
     - _LightTint: {r: 1, g: 1, b: 1, a: 0}
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
     - _Offset: {r: 0, g: 0, b: 0, a: 1}
     - _OutlineColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _RightBottomColor: {r: 0.40392154, g: 0.19999996, b: 0, a: 0}
+    - _RightBottomColor: {r: 0.40566036, g: 0.20141175, b: 0, a: 0}
     - _RightTopColor: {r: 0.816, g: 0.3724307, b: 0.020923076, a: 0}
     - _RimColor: {r: 0.8, g: 0.8, b: 0.8, a: 0.5}
     - _SColor: {r: 0.3962264, g: 0, b: 0, a: 1}
