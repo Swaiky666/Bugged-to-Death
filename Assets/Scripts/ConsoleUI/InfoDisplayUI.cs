@@ -23,11 +23,11 @@ namespace BugFixerGame
         public InfoData(
             InfoType type,
             string title,
-            string description = null,
-            Sprite backgroundImage = null,
-            float displayTime = 0f,
-            bool isTemporary = false,
-            string roomId = ""
+            string description,
+            Sprite backgroundImage,
+            float displayTime,
+            bool isTemporary,
+            string roomId
         )
         {
             Type = type;
@@ -44,40 +44,33 @@ namespace BugFixerGame
     {
         public static InfoDisplayUI Instance { get; private set; }
 
-        [Header("Panel & Prefab")]
+        [Header("References")]
         [SerializeField] private GameObject infoPanel;
         [SerializeField] private GameObject infoItemPrefab;
         [SerializeField] private RectTransform contentParent;
-
-        [Header("Layout Settings")]
-        [SerializeField] private float itemHeight = 100f;
-        [SerializeField] private float itemSpacing = 10f;
-
-        [Header("Scroll Settings")]
         [SerializeField] private ScrollRect scrollRect;
+        [SerializeField] private TMP_Text roomLabel;
+        [SerializeField] private TMP_Text titleText;
+
+        [Header("Behavior")]
+        [SerializeField] private bool enableRoomFiltering = true;
+        [SerializeField] private bool showBugCount = true;
         [SerializeField] private bool enableScrollWheel = true;
         [SerializeField] private float scrollSpeed = 20f;
 
-        [Header("Room & Title")]
-        [SerializeField] private TMP_Text roomLabel;
-        [SerializeField] private TMP_Text titleText;
-        [SerializeField] private bool enableRoomFiltering = true;
-        [SerializeField] private bool showBugCount = true;
+        [Header("Default Durations")]
+        [SerializeField] private float defaultMessageTime = 5f;
+        [SerializeField] private float defaultAlertTime = 3f;
 
         [Header("Background Sprites")]
         [SerializeField] private Sprite bugSprite;
         [SerializeField] private Sprite messageSprite;
         [SerializeField] private Sprite alertSprite;
 
-        [Header("Default Durations")]
-        [SerializeField] private float defaultMessageTime = 5f;
-        [SerializeField] private float defaultAlertTime = 3f;
-
         private readonly List<InfoData> currentInfos = new List<InfoData>();
         private readonly List<GameObject> infoItems = new List<GameObject>();
 
-        private string currentRoomId;
-        private string lastKnownRoomId;
+        private string currentRoomId, lastKnownRoomId;
 
         private void Awake()
         {
@@ -109,39 +102,33 @@ namespace BugFixerGame
 
         private void Update()
         {
-            if (enableScrollWheel) HandleScroll();
-            if (enableRoomFiltering)
-                CheckRoomChange();
-        }
-
-        private void HandleScroll()
-        {
-            if (scrollRect == null) return;
-            float delta = Input.GetAxis("Mouse ScrollWheel") * scrollSpeed;
-            if (Mathf.Abs(delta) > 0.01f)
+            if (enableScrollWheel && scrollRect != null)
             {
-                var pos = scrollRect.content.anchoredPosition;
-                pos.y += delta;
-                scrollRect.content.anchoredPosition = pos;
+                float d = Input.GetAxis("Mouse ScrollWheel") * scrollSpeed;
+                if (Mathf.Abs(d) > 0.01f)
+                {
+                    var pos = scrollRect.content.anchoredPosition;
+                    pos.y += d;
+                    scrollRect.content.anchoredPosition = pos;
+                }
+            }
+
+            if (enableRoomFiltering)
+            {
+                var nr = DetermineCurrentRoomId();
+                if (nr != lastKnownRoomId)
+                {
+                    UpdateCurrentRoom();
+                    RefreshBugInfo();
+                }
             }
         }
 
         public void TogglePanel()
         {
             if (infoPanel == null) return;
-            bool show = !infoPanel.activeSelf;
-            infoPanel.SetActive(show);
-            if (show) RefreshBugInfo();
-        }
-
-        private void CheckRoomChange()
-        {
-            string newRoom = DetermineCurrentRoomId();
-            if (newRoom != lastKnownRoomId)
-            {
-                OnRoomChanged(lastKnownRoomId, newRoom);
-                UpdateCurrentRoom();
-            }
+            infoPanel.SetActive(!infoPanel.activeSelf);
+            if (infoPanel.activeSelf) RefreshBugInfo();
         }
 
         private void UpdateCurrentRoom()
@@ -159,28 +146,25 @@ namespace BugFixerGame
             return room != null ? room.currentSequence.ToString() : "Unknown";
         }
 
-        private void OnRoomChanged(string oldRoom, string newRoom)
-        {
-            // Refresh bug list for the new room and remove old entries
-            RefreshBugInfo();
-        }
-
-        /// <summary>
-        /// Fetches and displays only the bugs in the current room.
-        /// </summary>
         public void RefreshBugInfo()
         {
-            currentInfos.RemoveAll(i => i.Type == InfoType.Bug);
+            // clear existing
+            foreach (var go in infoItems) Destroy(go);
+            infoItems.Clear();
+            currentInfos.Clear();
 
+            // fetch bugs
             var rs = FindObjectOfType<RoomSystem>();
-            List<BugObject> bugs = rs != null
+            var bugs = rs != null
                 ? rs.GetCurrentRoomBugObjects()
                 : new List<BugObject>(FindObjectsOfType<BugObject>());
 
+            // instantiate items
             foreach (var b in bugs)
             {
                 if (!b.ShouldShowInInfoPanel()) continue;
-                currentInfos.Add(new InfoData(
+
+                var data = new InfoData(
                     InfoType.Bug,
                     b.GetBugTitle(),
                     b.GetBugType().ToString(),
@@ -188,135 +172,126 @@ namespace BugFixerGame
                     0f,
                     false,
                     currentRoomId
-                ));
+                );
+                currentInfos.Add(data);
+
+                var go = Instantiate(infoItemPrefab, contentParent);
+                infoItems.Add(go);
+                go.GetComponent<InfoItemUI>()
+                  .SetupInfo(data, bugSprite);
             }
 
-            RenderUI();
+            // force layout rebuild and scroll to top
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
+            if (scrollRect != null)
+                scrollRect.verticalNormalizedPosition = 1f;
+
             UpdateTitle();
         }
 
         private void OnBugFixed(BugObject bug)
         {
-            for (int i = currentInfos.Count - 1; i >= 0; i--)
-            {
-                if (currentInfos[i].Type == InfoType.Bug &&
-                    currentInfos[i].Title == bug.GetBugTitle())
-                {
-                    currentInfos.RemoveAt(i);
-                }
-            }
-            RenderUI();
+            // find and remove matching entry
+            int idx = currentInfos.FindIndex(i => i.Title == bug.GetBugTitle());
+            if (idx < 0) return;
+
+            currentInfos.RemoveAt(idx);
+            Destroy(infoItems[idx]);
+            infoItems.RemoveAt(idx);
+
+            // rebuild layout
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
+            if (scrollRect != null)
+                scrollRect.verticalNormalizedPosition = 1f;
+
             UpdateTitle();
         }
 
-        private void RenderUI()
+        private void HandleTriggerActivated(MessageTrigger t, GameObject _)
         {
-            foreach (var go in infoItems) Destroy(go);
-            infoItems.Clear();
-
-            float totalHeight = currentInfos.Count * (itemHeight + itemSpacing) - itemSpacing;
-            contentParent.sizeDelta = new Vector2(
-                contentParent.sizeDelta.x,
-                Mathf.Max(totalHeight, 0)
-            );
-
-            for (int i = 0; i < currentInfos.Count; i++)
-            {
-                var info = currentInfos[i];
-                var go = Instantiate(infoItemPrefab, contentParent);
-                infoItems.Add(go);
-                var ui = go.GetComponent<InfoItemUI>();
-                ui.SetupInfo(info, GetBackgroundSprite(info.Type));
-
-                var rt = go.GetComponent<RectTransform>();
-                rt.anchorMin = new Vector2(0, 1);
-                rt.anchorMax = new Vector2(1, 1);
-                rt.pivot = new Vector2(0.5f, 1);
-                rt.sizeDelta = new Vector2(0, itemHeight);
-                float yOffset = i * (itemHeight + itemSpacing);
-                rt.anchoredPosition = new Vector2(0, -yOffset);
-            }
-
-            if (scrollRect != null)
-                scrollRect.verticalNormalizedPosition = 1f;
+            ShowMessage(t.MessageTitle, t.MessageDescription, t.DisplayTime);
         }
 
-        private Sprite GetBackgroundSprite(InfoType type)
+        public static void ShowMessage(string title, string desc, float time = 0f)
         {
-            switch (type)
+            if (Instance == null) return;
+            if (time <= 0f) time = Instance.defaultMessageTime;
+
+            var data = new InfoData(
+                InfoType.Message,
+                title,
+                desc,
+                Instance.messageSprite,
+                time,
+                true,
+                Instance.currentRoomId
+            );
+            Instance.currentInfos.Add(data);
+
+            var go = Instantiate(Instance.infoItemPrefab, Instance.contentParent);
+            Instance.infoItems.Add(go);
+            go.GetComponent<InfoItemUI>().SetupInfo(data, Instance.messageSprite);
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(Instance.contentParent);
+            Instance.scrollRect.verticalNormalizedPosition = 1f;
+
+            Instance.StartCoroutine(Instance.AutoHide(data));
+        }
+
+        public static void ShowAlert(string title, string desc, float time = 0f)
+        {
+            if (Instance == null) return;
+            if (time <= 0f) time = Instance.defaultAlertTime;
+
+            var data = new InfoData(
+                InfoType.Alert,
+                title,
+                desc,
+                Instance.alertSprite,
+                time,
+                true,
+                Instance.currentRoomId
+            );
+            Instance.currentInfos.Add(data);
+
+            var go = Instantiate(Instance.infoItemPrefab, Instance.contentParent);
+            Instance.infoItems.Add(go);
+            go.GetComponent<InfoItemUI>().SetupInfo(data, Instance.alertSprite);
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(Instance.contentParent);
+            Instance.scrollRect.verticalNormalizedPosition = 1f;
+
+            Instance.StartCoroutine(Instance.AutoHide(data));
+        }
+
+        private IEnumerator AutoHide(InfoData info)
+        {
+            yield return new WaitForSeconds(info.DisplayTime);
+
+            int idx = currentInfos.IndexOf(info);
+            if (idx >= 0)
             {
-                case InfoType.Bug: return bugSprite;
-                case InfoType.Message: return messageSprite;
-                case InfoType.Alert: return alertSprite;
-                default: return null;
+                currentInfos.RemoveAt(idx);
+                Destroy(infoItems[idx]);
+                infoItems.RemoveAt(idx);
+
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
+                if (scrollRect != null)
+                    scrollRect.verticalNormalizedPosition = 1f;
+
+                UpdateTitle();
             }
         }
 
         private void UpdateTitle()
         {
             if (!showBugCount || titleText == null) return;
-
-            int bugCount = 0;
-            foreach (var info in currentInfos)
-                if (info.Type == InfoType.Bug) bugCount++;
-
-            int total = currentInfos.Count;
-            string tag = enableRoomFiltering ? $" [{currentRoomId}]" : "";
-            titleText.text = $"Info{tag} (Bug: {bugCount}/{total})";
-        }
-
-        private void HandleTriggerActivated(MessageTrigger trigger, GameObject player)
-        {
-            ShowMessage(
-                trigger.MessageTitle,
-                trigger.MessageDescription,
-                trigger.DisplayTime,
-                trigger.RoomId
-            );
-        }
-
-        public static void ShowMessage(string title, string description, float displayTime = 0f, string roomId = "")
-        {
-            if (Instance == null) return;
-            if (displayTime <= 0f) displayTime = Instance.defaultMessageTime;
-            var info = new InfoData(
-                InfoType.Message,
-                title,
-                description,
-                Instance.messageSprite,
-                displayTime,
-                true,
-                Instance.enableRoomFiltering ? roomId : ""
-            );
-            Instance.currentInfos.Add(info);
-            Instance.RenderUI();
-            Instance.StartCoroutine(Instance.AutoHide(info));
-        }
-
-        public static void ShowAlert(string title, string description, float displayTime = 0f)
-        {
-            if (Instance == null) return;
-            if (displayTime <= 0f) displayTime = Instance.defaultAlertTime;
-            var info = new InfoData(
-                InfoType.Alert,
-                title,
-                description,
-                Instance.alertSprite,
-                displayTime,
-                true,
-                Instance.enableRoomFiltering ? Instance.currentRoomId : ""
-            );
-            Instance.currentInfos.Add(info);
-            Instance.RenderUI();
-            Instance.StartCoroutine(Instance.AutoHide(info));
-        }
-
-        private IEnumerator AutoHide(InfoData info)
-        {
-            yield return new WaitForSeconds(info.DisplayTime);
-            Instance.currentInfos.Remove(info);
-            Instance.RenderUI();
-            Instance.UpdateTitle();
+            titleText.text = $"Info [{currentRoomId}] (Bug: {currentInfos.Count})";
         }
 
         public void SetBackgroundSprites(Sprite bugBg, Sprite msgBg, Sprite alertBg)
