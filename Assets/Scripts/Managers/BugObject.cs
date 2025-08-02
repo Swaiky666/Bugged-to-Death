@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BugFixerGame
@@ -22,6 +23,10 @@ namespace BugFixerGame
         [SerializeField]
         private bool showInInfoPanel = true; // 是否在信息面板中显示
 
+        [Header("多Renderer支持")]
+        [SerializeField] private bool includeChildRenderers = true;  // 是否包含子物体的Renderer
+        [SerializeField] private bool debugRendererSearch = true;    // 调试Renderer搜索过程
+
         [Header("正确物体配置")]
         [SerializeField] private GameObject correctObject;          // 正确的物体
         [Tooltip("修复Bug后显示的正确物体")]
@@ -35,7 +40,7 @@ namespace BugFixerGame
         private AnimationCurve popupCurve = new AnimationCurve(
             new Keyframe(0, 0, 0, 0),
             new Keyframe(0.6f, 1.1f, 2, 2),
-            new Keyframe(1, 1, 0, 0)
+            new Keyframe(1, 1, 1, 0)
         ); // 弹出动画曲线
 
         [Header("闪烁Bug设置")]
@@ -77,19 +82,19 @@ namespace BugFixerGame
         [SerializeField] private bool debugFlickering = true;
         [SerializeField] private bool showDebugInfo = false;
 
-        // 组件缓存
-        private Renderer objectRenderer;
-        private SpriteRenderer spriteRenderer;
-        private Collider2D objectCollider2D;
-        private Collider objectCollider3D;
+        // 修改：支持多个Renderer组件
+        private List<Renderer> objectRenderers = new List<Renderer>();
+        private List<SpriteRenderer> spriteRenderers = new List<SpriteRenderer>();
+        private List<Collider2D> objectColliders2D = new List<Collider2D>();
+        private List<Collider> objectColliders3D = new List<Collider>();
 
-        // 原始状态保存
-        private Color originalColor;
-        private Material originalMaterial;
-        private bool originalCollider2DEnabled;
-        private bool originalCollider3DEnabled;
-        private bool originalCollider2DIsTrigger;
-        private bool originalCollider3DIsTrigger;
+        // 原始状态保存 - 修改为列表
+        private List<Color> originalColors = new List<Color>();
+        private List<Material> originalMaterials = new List<Material>();
+        private List<bool> originalCollider2DEnabled = new List<bool>();
+        private List<bool> originalCollider3DEnabled = new List<bool>();
+        private List<bool> originalCollider2DIsTrigger = new List<bool>();
+        private List<bool> originalCollider3DIsTrigger = new List<bool>();
         private Vector3 originalPosition;
         private Vector3 originalRotation;
         private Vector3 originalScale;
@@ -295,14 +300,75 @@ namespace BugFixerGame
 
         #endregion
 
-        #region 初始化
+        #region 初始化 - 修改为支持多Renderer
 
         private void CacheComponents()
         {
-            objectRenderer = GetComponent<Renderer>();
-            spriteRenderer = GetComponent<SpriteRenderer>();
-            objectCollider2D = GetComponent<Collider2D>();
-            objectCollider3D = GetComponent<Collider>();
+            if (debugRendererSearch)
+                Debug.Log($"🔍 开始搜索 {gameObject.name} 的Renderer组件...");
+
+            // 清空所有列表
+            objectRenderers.Clear();
+            spriteRenderers.Clear();
+            objectColliders2D.Clear();
+            objectColliders3D.Clear();
+
+            // 获取当前物体的组件
+            Renderer selfRenderer = GetComponent<Renderer>();
+            SpriteRenderer selfSpriteRenderer = GetComponent<SpriteRenderer>();
+
+            if (selfRenderer != null)
+            {
+                objectRenderers.Add(selfRenderer);
+                if (debugRendererSearch)
+                    Debug.Log($"  ✅ 找到自身Renderer: {selfRenderer.GetType().Name}");
+            }
+
+            if (selfSpriteRenderer != null)
+            {
+                spriteRenderers.Add(selfSpriteRenderer);
+                if (debugRendererSearch)
+                    Debug.Log($"  ✅ 找到自身SpriteRenderer: {selfSpriteRenderer.name}");
+            }
+
+            // 如果启用了子物体搜索，获取所有子物体的Renderer组件
+            if (includeChildRenderers)
+            {
+                Renderer[] childRenderers = GetComponentsInChildren<Renderer>();
+                SpriteRenderer[] childSpriteRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+                foreach (var renderer in childRenderers)
+                {
+                    if (renderer != selfRenderer && !objectRenderers.Contains(renderer))
+                    {
+                        objectRenderers.Add(renderer);
+                        if (debugRendererSearch)
+                            Debug.Log($"  ✅ 找到子物体Renderer: {renderer.name} ({renderer.GetType().Name})");
+                    }
+                }
+
+                foreach (var spriteRenderer in childSpriteRenderers)
+                {
+                    if (spriteRenderer != selfSpriteRenderer && !spriteRenderers.Contains(spriteRenderer))
+                    {
+                        spriteRenderers.Add(spriteRenderer);
+                        if (debugRendererSearch)
+                            Debug.Log($"  ✅ 找到子物体SpriteRenderer: {spriteRenderer.name}");
+                    }
+                }
+            }
+
+            // 获取碰撞体组件（包括子物体）
+            Collider2D[] colliders2D = includeChildRenderers ? GetComponentsInChildren<Collider2D>() : GetComponents<Collider2D>();
+            Collider[] colliders3D = includeChildRenderers ? GetComponentsInChildren<Collider>() : GetComponents<Collider>();
+
+            objectColliders2D.AddRange(colliders2D);
+            objectColliders3D.AddRange(colliders3D);
+
+            if (debugRendererSearch)
+            {
+                Debug.Log($"🔍 搜索完成：找到 {objectRenderers.Count} 个Renderer，{spriteRenderers.Count} 个SpriteRenderer，{objectColliders2D.Count} 个Collider2D，{objectColliders3D.Count} 个Collider3D");
+            }
         }
 
         private void InitializeCorrectObject()
@@ -315,27 +381,61 @@ namespace BugFixerGame
 
         private void SaveOriginalState()
         {
-            // 保存颜色和材质
-            if (spriteRenderer != null)
+            // 清空原始状态列表
+            originalColors.Clear();
+            originalMaterials.Clear();
+            originalCollider2DEnabled.Clear();
+            originalCollider3DEnabled.Clear();
+            originalCollider2DIsTrigger.Clear();
+            originalCollider3DIsTrigger.Clear();
+
+            // 保存所有SpriteRenderer的颜色
+            foreach (var spriteRenderer in spriteRenderers)
             {
-                originalColor = spriteRenderer.color;
-            }
-            else if (objectRenderer != null)
-            {
-                originalColor = objectRenderer.material.color;
-                originalMaterial = objectRenderer.material;
+                if (spriteRenderer != null)
+                {
+                    originalColors.Add(spriteRenderer.color);
+                }
             }
 
-            // 保存碰撞体状态
-            if (objectCollider2D != null)
+            // 保存所有Renderer的材质和颜色
+            foreach (var renderer in objectRenderers)
             {
-                originalCollider2DEnabled = objectCollider2D.enabled;
-                originalCollider2DIsTrigger = objectCollider2D.isTrigger;
+                if (renderer != null)
+                {
+                    originalMaterials.Add(renderer.material);
+
+                    // 尝试获取材质颜色
+                    Color materialColor = Color.white;
+                    if (renderer.material.HasProperty(BaseColorProperty))
+                    {
+                        materialColor = renderer.material.GetColor(BaseColorProperty);
+                    }
+                    else if (renderer.material.HasProperty("_Color"))
+                    {
+                        materialColor = renderer.material.color;
+                    }
+                    originalColors.Add(materialColor);
+                }
             }
-            if (objectCollider3D != null)
+
+            // 保存所有碰撞体状态
+            foreach (var collider2D in objectColliders2D)
             {
-                originalCollider3DEnabled = objectCollider3D.enabled;
-                originalCollider3DIsTrigger = objectCollider3D.isTrigger;
+                if (collider2D != null)
+                {
+                    originalCollider2DEnabled.Add(collider2D.enabled);
+                    originalCollider2DIsTrigger.Add(collider2D.isTrigger);
+                }
+            }
+
+            foreach (var collider3D in objectColliders3D)
+            {
+                if (collider3D != null)
+                {
+                    originalCollider3DEnabled.Add(collider3D.enabled);
+                    originalCollider3DIsTrigger.Add(collider3D.isTrigger);
+                }
             }
 
             // 保存变换状态
@@ -464,13 +564,21 @@ namespace BugFixerGame
 
         #endregion
 
-        #region 具体Bug效果实现
+        #region 具体Bug效果实现 - 修改为支持多Renderer
 
         // 1. 物体闪烁
         private void ApplyFlickeringEffect()
         {
             if (debugFlickering)
                 Debug.Log($"[闪烁] 开始应用闪烁效果到 {gameObject.name}");
+
+            // 检查是否有任何Renderer组件
+            if (objectRenderers.Count == 0 && spriteRenderers.Count == 0)
+            {
+                if (debugFlickering)
+                    Debug.LogWarning($"[闪烁] {gameObject.name} 及其子物体都没有Renderer组件，跳过闪烁效果");
+                return;
+            }
 
             if (useURPCompatibility)
             {
@@ -494,36 +602,50 @@ namespace BugFixerGame
                 StopCoroutine(flickerCoroutine);
                 flickerCoroutine = null;
             }
-            RestoreOriginalColor();
+            RestoreOriginalColors();
         }
 
         // 2. 碰撞缺失
         private void ApplyCollisionMissingEffect()
         {
-            if (objectCollider2D != null)
+            // 设置所有碰撞体为Trigger
+            foreach (var collider2D in objectColliders2D)
             {
-                objectCollider2D.isTrigger = true;
+                if (collider2D != null)
+                {
+                    collider2D.isTrigger = true;
+                }
             }
-            if (objectCollider3D != null)
+            foreach (var collider3D in objectColliders3D)
             {
-                objectCollider3D.isTrigger = true;
+                if (collider3D != null)
+                {
+                    collider3D.isTrigger = true;
+                }
             }
 
-            SetAlpha(collisionMissingAlpha);
-            Debug.Log($"CollisionMissing效果：{gameObject.name} 碰撞设为Trigger");
+            SetAlphaForAllRenderers(collisionMissingAlpha);
+            Debug.Log($"CollisionMissing效果：{gameObject.name} 及子物体碰撞设为Trigger");
         }
 
         private void RemoveCollisionMissingEffect()
         {
-            if (objectCollider2D != null)
+            // 恢复所有碰撞体状态
+            for (int i = 0; i < objectColliders2D.Count && i < originalCollider2DIsTrigger.Count; i++)
             {
-                objectCollider2D.isTrigger = originalCollider2DIsTrigger;
+                if (objectColliders2D[i] != null)
+                {
+                    objectColliders2D[i].isTrigger = originalCollider2DIsTrigger[i];
+                }
             }
-            if (objectCollider3D != null)
+            for (int i = 0; i < objectColliders3D.Count && i < originalCollider3DIsTrigger.Count; i++)
             {
-                objectCollider3D.isTrigger = originalCollider3DIsTrigger;
+                if (objectColliders3D[i] != null)
+                {
+                    objectColliders3D[i].isTrigger = originalCollider3DIsTrigger[i];
+                }
             }
-            RestoreOriginalColor();
+            RestoreOriginalColors();
         }
 
         // 3. 错误或缺失材质
@@ -532,33 +654,40 @@ namespace BugFixerGame
             if (hideMaterialCompletely)
             {
                 // 完全隐藏材质（设为透明）
-                SetAlpha(0f);
-                Debug.Log($"MaterialMissing效果：{gameObject.name} 材质完全隐藏");
+                SetAlphaForAllRenderers(0f);
+                Debug.Log($"MaterialMissing效果：{gameObject.name} 及子物体材质完全隐藏");
             }
             else if (buggyMaterial != null)
             {
-                // 应用错误材质
-                if (objectRenderer != null)
+                // 应用错误材质到所有Renderer
+                foreach (var renderer in objectRenderers)
                 {
-                    objectRenderer.material = buggyMaterial;
+                    if (renderer != null)
+                    {
+                        renderer.material = buggyMaterial;
+                    }
                 }
-                Debug.Log($"WrongMaterial效果：{gameObject.name} 应用错误材质");
+                Debug.Log($"WrongMaterial效果：{gameObject.name} 及子物体应用错误材质");
             }
             else
             {
                 // 默认：设置为半透明提示缺失
-                SetAlpha(0.3f);
-                Debug.Log($"MaterialMissing效果：{gameObject.name} 材质半透明");
+                SetAlphaForAllRenderers(0.3f);
+                Debug.Log($"MaterialMissing效果：{gameObject.name} 及子物体材质半透明");
             }
         }
 
         private void RemoveWrongOrMissingMaterialEffect()
         {
-            if (originalMaterial != null && objectRenderer != null)
+            // 恢复所有原始材质
+            for (int i = 0; i < objectRenderers.Count && i < originalMaterials.Count; i++)
             {
-                objectRenderer.material = originalMaterial;
+                if (objectRenderers[i] != null && originalMaterials[i] != null)
+                {
+                    objectRenderers[i].material = originalMaterials[i];
+                }
             }
-            RestoreOriginalColor();
+            RestoreOriginalColors();
         }
 
         // 4. 错误物体
@@ -569,7 +698,7 @@ namespace BugFixerGame
                 // 显示错误物体
                 spawnedWrongObject = Instantiate(wrongObject, transform.position, transform.rotation, transform.parent);
                 // 隐藏原物体
-                SetAlpha(0f);
+                SetAlphaForAllRenderers(0f);
                 SetCollidersAsTrigger(true);
                 Debug.Log($"WrongObject效果：{gameObject.name} 显示错误物体 {wrongObject.name}");
             }
@@ -577,7 +706,7 @@ namespace BugFixerGame
             {
                 Debug.LogWarning($"WrongObject效果：{gameObject.name} 没有设置错误物体！");
                 // 如果没有设置错误物体，默认隐藏原物体
-                SetAlpha(0.1f);
+                SetAlphaForAllRenderers(0.1f);
                 SetCollidersAsTrigger(true);
             }
         }
@@ -590,7 +719,7 @@ namespace BugFixerGame
                 spawnedWrongObject = null;
             }
 
-            RestoreOriginalColor();
+            RestoreOriginalColors();
             SetCollidersAsTrigger(false);
         }
 
@@ -600,22 +729,22 @@ namespace BugFixerGame
             if (hideObjectCompletely)
             {
                 // 完全隐藏物体
-                SetAlpha(0f);
+                SetAlphaForAllRenderers(0f);
                 SetCollidersAsTrigger(true);
-                Debug.Log($"MissingObject效果：{gameObject.name} 物体完全隐藏");
+                Debug.Log($"MissingObject效果：{gameObject.name} 及子物体完全隐藏");
             }
             else
             {
                 // 使用自定义透明度
-                SetAlpha(missingObjectAlpha);
+                SetAlphaForAllRenderers(missingObjectAlpha);
                 SetCollidersAsTrigger(true);
-                Debug.Log($"MissingObject效果：{gameObject.name} 物体透明度设为 {missingObjectAlpha}");
+                Debug.Log($"MissingObject效果：{gameObject.name} 及子物体透明度设为 {missingObjectAlpha}");
             }
         }
 
         private void RemoveMissingObjectEffect()
         {
-            RestoreOriginalColor();
+            RestoreOriginalColors();
             SetCollidersAsTrigger(false);
         }
 
@@ -710,7 +839,7 @@ namespace BugFixerGame
             {
                 isVisible = !isVisible;
                 float targetAlpha = isVisible ? flickerAlphaMax : flickerAlphaMin;
-                SetAlpha(targetAlpha);
+                SetAlphaForAllRenderers(targetAlpha);
 
                 flickerCount++;
                 if (debugFlickering && flickerCount <= 3)
@@ -722,42 +851,47 @@ namespace BugFixerGame
 
         #endregion
 
-        #region URP兼容功能
+        #region URP兼容功能 - 修改为支持多Renderer
 
         private void SetupURPTransparency()
         {
-            if (objectRenderer == null && spriteRenderer == null)
-            {
-                Debug.LogError("[URP] 未找到Renderer组件！");
-                return;
-            }
-
-            if (spriteRenderer != null)
+            if (objectRenderers.Count == 0 && spriteRenderers.Count == 0)
             {
                 if (debugFlickering)
-                    Debug.Log("[URP] SpriteRenderer支持透明度");
+                    Debug.LogWarning($"[URP] {gameObject.name} 没有找到任何Renderer组件，跳过URP透明度设置");
                 return;
             }
 
-            if (objectRenderer != null)
-            {
-                Material currentMat = objectRenderer.material;
+            if (debugFlickering)
+                Debug.Log($"[URP] 为 {objectRenderers.Count} 个Renderer和 {spriteRenderers.Count} 个SpriteRenderer设置透明度支持");
 
-                if (IsURPShader(currentMat.shader))
+            // SpriteRenderer本身就支持透明度
+            if (spriteRenderers.Count > 0 && debugFlickering)
+            {
+                Debug.Log("[URP] SpriteRenderer支持透明度");
+            }
+
+            // 处理所有Renderer组件
+            foreach (var renderer in objectRenderers)
+            {
+                if (renderer != null)
                 {
-                    SetupURPMaterialTransparency(currentMat);
-                }
-                else if (transparentMaterialPrefab != null)
-                {
-                    if (originalMaterial == null)
-                        originalMaterial = currentMat;
-                    objectRenderer.material = transparentMaterialPrefab;
-                    if (debugFlickering)
-                        Debug.Log("[URP] 使用预制透明材质");
-                }
-                else
-                {
-                    EnsureMaterialSupportsTransparency();
+                    Material currentMat = renderer.material;
+
+                    if (IsURPShader(currentMat.shader))
+                    {
+                        SetupURPMaterialTransparency(currentMat);
+                    }
+                    else if (transparentMaterialPrefab != null)
+                    {
+                        renderer.material = transparentMaterialPrefab;
+                        if (debugFlickering)
+                            Debug.Log($"[URP] {renderer.name} 使用预制透明材质");
+                    }
+                    else
+                    {
+                        EnsureMaterialSupportsTransparency(renderer);
+                    }
                 }
             }
         }
@@ -796,27 +930,35 @@ namespace BugFixerGame
                 mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 
                 if (debugFlickering)
-                    Debug.Log("[URP] 材质透明度设置完成");
+                    Debug.Log($"[URP] 材质 {mat.name} 透明度设置完成");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[URP] 设置透明度出错: {e.Message}");
+                Debug.LogError($"[URP] 设置材质 {mat.name} 透明度出错: {e.Message}");
             }
         }
 
         private void EnsureMaterialSupportsTransparency()
         {
-            if (objectRenderer != null)
+            foreach (var renderer in objectRenderers)
             {
-                Material mat = objectRenderer.material;
-
-                if (mat.shader.name.Contains("Standard"))
+                if (renderer != null)
                 {
-                    float currentMode = mat.HasProperty("_Mode") ? mat.GetFloat("_Mode") : 0;
-                    if (currentMode < 2)
-                    {
-                        SetMaterialToTransparent(mat);
-                    }
+                    EnsureMaterialSupportsTransparency(renderer);
+                }
+            }
+        }
+
+        private void EnsureMaterialSupportsTransparency(Renderer renderer)
+        {
+            Material mat = renderer.material;
+
+            if (mat.shader.name.Contains("Standard"))
+            {
+                float currentMode = mat.HasProperty("_Mode") ? mat.GetFloat("_Mode") : 0;
+                if (currentMode < 2)
+                {
+                    SetMaterialToTransparent(mat);
                 }
             }
         }
@@ -833,98 +975,152 @@ namespace BugFixerGame
 
         #endregion
 
-        #region 辅助方法
+        #region 辅助方法 - 修改为支持多Renderer
 
-        private bool SetAlpha(float alpha)
+        /// <summary>
+        /// 为所有Renderer设置透明度
+        /// </summary>
+        private bool SetAlphaForAllRenderers(float alpha)
         {
             bool success = false;
 
-            if (spriteRenderer != null)
+            // 设置所有SpriteRenderer的透明度
+            foreach (var spriteRenderer in spriteRenderers)
             {
-                Color color = spriteRenderer.color;
-                color.a = alpha;
-                spriteRenderer.color = color;
-                success = true;
-            }
-            else if (objectRenderer != null)
-            {
-                Material mat = objectRenderer.material;
-
-                if (mat.HasProperty(BaseColorProperty))
+                if (spriteRenderer != null)
                 {
-                    Color color = mat.GetColor(BaseColorProperty);
+                    Color color = spriteRenderer.color;
                     color.a = alpha;
-                    mat.SetColor(BaseColorProperty, color);
+                    spriteRenderer.color = color;
                     success = true;
                 }
-                else if (mat.HasProperty("_Color"))
+            }
+
+            // 设置所有Renderer的透明度
+            foreach (var renderer in objectRenderers)
+            {
+                if (renderer != null)
                 {
-                    Color color = mat.color;
-                    color.a = alpha;
-                    mat.color = color;
-                    success = true;
+                    Material mat = renderer.material;
+
+                    if (mat.HasProperty(BaseColorProperty))
+                    {
+                        Color color = mat.GetColor(BaseColorProperty);
+                        color.a = alpha;
+                        mat.SetColor(BaseColorProperty, color);
+                        success = true;
+                    }
+                    else if (mat.HasProperty("_Color"))
+                    {
+                        Color color = mat.color;
+                        color.a = alpha;
+                        mat.color = color;
+                        success = true;
+                    }
                 }
             }
 
             return success;
         }
 
-        private float GetCurrentAlpha()
+        /// <summary>
+        /// 获取平均透明度（用于调试）
+        /// </summary>
+        private float GetAverageAlpha()
         {
-            if (spriteRenderer != null)
-                return spriteRenderer.color.a;
-            else if (objectRenderer != null)
-            {
-                Material mat = objectRenderer.material;
-                if (mat.HasProperty(BaseColorProperty))
-                    return mat.GetColor(BaseColorProperty).a;
-                else if (mat.HasProperty("_Color"))
-                    return mat.color.a;
-            }
-            return -1f;
-        }
+            float totalAlpha = 0f;
+            int count = 0;
 
-        private void RestoreOriginalColor()
-        {
-            if (spriteRenderer != null)
+            foreach (var spriteRenderer in spriteRenderers)
             {
-                spriteRenderer.color = originalColor;
-            }
-            else if (objectRenderer != null)
-            {
-                if (transparentMaterialPrefab != null && originalMaterial != null &&
-                    objectRenderer.material == transparentMaterialPrefab)
+                if (spriteRenderer != null)
                 {
-                    objectRenderer.material = originalMaterial;
+                    totalAlpha += spriteRenderer.color.a;
+                    count++;
                 }
-                else
+            }
+
+            foreach (var renderer in objectRenderers)
+            {
+                if (renderer != null)
                 {
-                    Material mat = objectRenderer.material;
+                    Material mat = renderer.material;
                     if (mat.HasProperty(BaseColorProperty))
                     {
-                        Color color = mat.GetColor(BaseColorProperty);
-                        color.a = originalColor.a;
-                        mat.SetColor(BaseColorProperty, color);
+                        totalAlpha += mat.GetColor(BaseColorProperty).a;
+                        count++;
                     }
                     else if (mat.HasProperty("_Color"))
                     {
-                        Color color = mat.color;
-                        color.a = originalColor.a;
-                        mat.color = color;
+                        totalAlpha += mat.color.a;
+                        count++;
+                    }
+                }
+            }
+
+            return count > 0 ? totalAlpha / count : -1f;
+        }
+
+        /// <summary>
+        /// 恢复所有原始颜色
+        /// </summary>
+        private void RestoreOriginalColors()
+        {
+            // 恢复SpriteRenderer颜色
+            for (int i = 0; i < spriteRenderers.Count && i < originalColors.Count; i++)
+            {
+                if (spriteRenderers[i] != null)
+                {
+                    spriteRenderers[i].color = originalColors[i];
+                }
+            }
+
+            // 恢复Renderer材质颜色
+            int colorIndex = spriteRenderers.Count; // 从SpriteRenderer数量开始的索引
+            for (int i = 0; i < objectRenderers.Count && colorIndex < originalColors.Count; i++, colorIndex++)
+            {
+                if (objectRenderers[i] != null)
+                {
+                    // 如果使用了预制的透明材质，先恢复原始材质
+                    if (transparentMaterialPrefab != null && i < originalMaterials.Count &&
+                        objectRenderers[i].material == transparentMaterialPrefab && originalMaterials[i] != null)
+                    {
+                        objectRenderers[i].material = originalMaterials[i];
+                    }
+
+                    Material mat = objectRenderers[i].material;
+                    Color originalColor = originalColors[colorIndex];
+
+                    if (mat.HasProperty(BaseColorProperty))
+                    {
+                        mat.SetColor(BaseColorProperty, originalColor);
+                    }
+                    else if (mat.HasProperty("_Color"))
+                    {
+                        mat.color = originalColor;
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// 设置碰撞体为Trigger状态
+        /// </summary>
         private void SetCollidersAsTrigger(bool asTrigger)
         {
-            if (objectCollider2D != null)
+            for (int i = 0; i < objectColliders2D.Count && i < originalCollider2DIsTrigger.Count; i++)
             {
-                objectCollider2D.isTrigger = asTrigger ? true : originalCollider2DIsTrigger;
+                if (objectColliders2D[i] != null)
+                {
+                    objectColliders2D[i].isTrigger = asTrigger ? true : originalCollider2DIsTrigger[i];
+                }
             }
-            if (objectCollider3D != null)
+            for (int i = 0; i < objectColliders3D.Count && i < originalCollider3DIsTrigger.Count; i++)
             {
-                objectCollider3D.isTrigger = asTrigger ? true : originalCollider3DIsTrigger;
+                if (objectColliders3D[i] != null)
+                {
+                    objectColliders3D[i].isTrigger = asTrigger ? true : originalCollider3DIsTrigger[i];
+                }
             }
         }
 
@@ -960,6 +1156,26 @@ namespace BugFixerGame
         public void SetBuggyMaterial(Material material) => buggyMaterial = material;
         public void SetWrongObject(GameObject obj) => wrongObject = obj;
 
+        /// <summary>
+        /// 获取Renderer组件统计信息
+        /// </summary>
+        public string GetRendererInfo()
+        {
+            return $"Renderer: {objectRenderers.Count}, SpriteRenderer: {spriteRenderers.Count}, " +
+                   $"Collider2D: {objectColliders2D.Count}, Collider3D: {objectColliders3D.Count}";
+        }
+
+        /// <summary>
+        /// 设置是否包含子物体Renderer
+        /// </summary>
+        public void SetIncludeChildRenderers(bool include)
+        {
+            includeChildRenderers = include;
+            // 重新缓存组件
+            CacheComponents();
+            SaveOriginalState();
+        }
+
         #endregion
 
         #region 调试功能
@@ -972,8 +1188,10 @@ namespace BugFixerGame
             if (screenPos.z > 0 && screenPos.x > 0 && screenPos.x < Screen.width && screenPos.y > 0 && screenPos.y < Screen.height)
             {
                 Vector2 guiPos = new Vector2(screenPos.x, Screen.height - screenPos.y);
-                GUI.Box(new Rect(guiPos.x - 60, guiPos.y - 40, 120, 80),
-                    $"{gameObject.name}\n{bugType}\n{(isBugActive ? "ON" : "OFF")}\nAlpha: {GetCurrentAlpha():F2}");
+                GUI.Box(new Rect(guiPos.x - 80, guiPos.y - 60, 160, 120),
+                    $"{gameObject.name}\n{bugType}\n{(isBugActive ? "ON" : "OFF")}\n" +
+                    $"R:{objectRenderers.Count} SR:{spriteRenderers.Count}\n" +
+                    $"Avg Alpha: {GetAverageAlpha():F2}");
             }
         }
 
@@ -1023,17 +1241,46 @@ namespace BugFixerGame
             Debug.Log($"Bug标题: {bugTitle}");
             Debug.Log($"Bug描述: {bugDescription}");
             Debug.Log($"显示在信息面板: {showInInfoPanel}");
-            Debug.Log($"Renderer: {(objectRenderer ? objectRenderer.name : "无")}");
-            Debug.Log($"SpriteRenderer: {(spriteRenderer ? spriteRenderer.name : "无")}");
-            Debug.Log($"Collider2D: {(objectCollider2D ? objectCollider2D.name : "无")}");
-            Debug.Log($"Collider3D: {(objectCollider3D ? objectCollider3D.name : "无")}");
-            Debug.Log($"当前透明度: {GetCurrentAlpha()}");
+            Debug.Log($"包含子物体Renderer: {includeChildRenderers}");
+            Debug.Log($"组件统计: {GetRendererInfo()}");
+            Debug.Log($"平均透明度: {GetAverageAlpha()}");
 
-            if (objectRenderer != null)
+            Debug.Log("=== Renderer列表 ===");
+            for (int i = 0; i < objectRenderers.Count; i++)
             {
-                Debug.Log($"材质: {objectRenderer.material.name}");
-                Debug.Log($"Shader: {objectRenderer.material.shader.name}");
-                Debug.Log($"是否URP: {IsURPShader(objectRenderer.material.shader)}");
+                var renderer = objectRenderers[i];
+                Debug.Log($"  {i + 1}. {renderer.name} ({renderer.GetType().Name}) - 材质: {renderer.material.name}");
+            }
+
+            Debug.Log("=== SpriteRenderer列表 ===");
+            for (int i = 0; i < spriteRenderers.Count; i++)
+            {
+                var spriteRenderer = spriteRenderers[i];
+                Debug.Log($"  {i + 1}. {spriteRenderer.name} - 颜色: {spriteRenderer.color}");
+            }
+        }
+
+        [ContextMenu("🔄 重新扫描组件")]
+        private void DebugRescanComponents()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🔄 重新扫描组件...");
+                CacheComponents();
+                SaveOriginalState();
+                Debug.Log($"✅ 扫描完成: {GetRendererInfo()}");
+            }
+        }
+
+        [ContextMenu("🎨 测试透明度设置")]
+        private void DebugTestAlpha()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("🎨 测试透明度设置...");
+                float testAlpha = 0.5f;
+                bool success = SetAlphaForAllRenderers(testAlpha);
+                Debug.Log($"透明度设置结果: {(success ? "成功" : "失败")}, 平均透明度: {GetAverageAlpha():F2}");
             }
         }
 
