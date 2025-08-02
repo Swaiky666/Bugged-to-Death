@@ -22,6 +22,9 @@ namespace BugFixerGame
         [Header("长按点击设置")]
         [SerializeField] private float holdTime = 2f;              // 长按时间
 
+        [Header("游戏结束控制")]
+        [SerializeField] private bool disableControlsOnGameEnd = true;  // 游戏结束时是否禁用控制
+
         private CharacterController controller;
         private Camera cam;
         private CameraController cameraController;
@@ -34,6 +37,9 @@ namespace BugFixerGame
         private bool isHolding = false;
         private float holdStartTime = 0f;
         private Coroutine holdCoroutine;
+
+        // 控制状态
+        private bool controlsEnabled = true;
 
         // 事件
         public static event System.Action<BugObject> OnBugObjectClicked;
@@ -59,13 +65,120 @@ namespace BugFixerGame
             cameraController = GetComponentInChildren<CameraController>();
         }
 
+        private void OnEnable()
+        {
+            // 订阅游戏结束事件
+            GameManager.OnGameOver += OnGameEnded;
+            GameManager.OnHappyEnd += OnGameEnded;
+            GameManager.OnGameEnded += OnGameEndedWithReason;
+        }
+
+        private void OnDisable()
+        {
+            // 取消订阅
+            GameManager.OnGameOver -= OnGameEnded;
+            GameManager.OnHappyEnd -= OnGameEnded;
+            GameManager.OnGameEnded -= OnGameEndedWithReason;
+        }
+
         private void Update()
         {
-            HandleMovement();
-            HandleJump();
-            HandleRayDetection();
-            HandleClickInput();
+            // 检查控制是否启用
+            UpdateControlsState();
+
+            if (controlsEnabled)
+            {
+                HandleMovement();
+                HandleJump();
+                HandleRayDetection();
+                HandleClickInput();
+            }
+            else
+            {
+                // 游戏结束时，取消任何进行中的长按操作
+                if (isHolding)
+                {
+                    CancelHold();
+                }
+            }
+
+            // ESC键始终可用（用于暂停菜单）
             HandleEscapeInput();
+        }
+
+        #endregion
+
+        #region 控制状态管理
+
+        /// <summary>
+        /// 更新控制状态
+        /// </summary>
+        private void UpdateControlsState()
+        {
+            bool shouldEnableControls = true;
+
+            if (disableControlsOnGameEnd && GameManager.Instance != null)
+            {
+                // 如果游戏结束且启用了游戏结束禁用控制，则禁用控制
+                if (GameManager.Instance.IsGameEnded())
+                {
+                    shouldEnableControls = false;
+                }
+            }
+
+            // 如果控制状态发生变化，记录日志
+            if (controlsEnabled != shouldEnableControls)
+            {
+                controlsEnabled = shouldEnableControls;
+                Debug.Log($"🎮 玩家控制状态更新: {(controlsEnabled ? "启用" : "禁用")}");
+
+                if (!controlsEnabled)
+                {
+                    // 禁用控制时，停止所有移动
+                    velocity.x = 0f;
+                    velocity.z = 0f;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 游戏结束事件处理
+        /// </summary>
+        private void OnGameEnded()
+        {
+            Debug.Log("🛑 Player: 收到游戏结束事件，准备禁用控制");
+            UpdateControlsState();
+        }
+
+        /// <summary>
+        /// 带原因的游戏结束事件处理
+        /// </summary>
+        private void OnGameEndedWithReason(string reason)
+        {
+            Debug.Log($"🛑 Player: 游戏结束 - {reason}，控制已禁用");
+            UpdateControlsState();
+        }
+
+        /// <summary>
+        /// 手动设置控制启用状态
+        /// </summary>
+        public void SetControlsEnabled(bool enabled)
+        {
+            controlsEnabled = enabled;
+            Debug.Log($"🎮 手动设置玩家控制: {(enabled ? "启用" : "禁用")}");
+
+            if (!enabled && isHolding)
+            {
+                CancelHold();
+            }
+        }
+
+        /// <summary>
+        /// 检查控制是否启用
+        /// </summary>
+        public bool AreControlsEnabled()
+        {
+            return controlsEnabled;
         }
 
         #endregion
@@ -271,7 +384,7 @@ namespace BugFixerGame
 
             Debug.Log("[长按相关] 长按协程开始");
 
-            while (elapsed < holdTime && isHolding)
+            while (elapsed < holdTime && isHolding && controlsEnabled)
             {
                 elapsed = Time.time - holdStartTime;
                 float progress = elapsed / holdTime;
@@ -293,14 +406,14 @@ namespace BugFixerGame
             }
 
             // 长按完成
-            if (isHolding && currentDetectedObject != null)
+            if (isHolding && currentDetectedObject != null && controlsEnabled)
             {
                 Debug.Log("[长按相关] 长按完成！开始检测物体");
                 CompleteObjectDetection();
             }
             else
             {
-                Debug.Log("[长按相关] 长按协程结束，但条件不满足（可能被取消了）");
+                Debug.Log("[长按相关] 长按协程结束，但条件不满足（可能被取消了或控制被禁用）");
             }
         }
 
@@ -404,6 +517,16 @@ namespace BugFixerGame
             CancelHold();
         }
 
+        /// <summary>
+        /// 设置是否在游戏结束时禁用控制
+        /// </summary>
+        public void SetDisableControlsOnGameEnd(bool disable)
+        {
+            disableControlsOnGameEnd = disable;
+            UpdateControlsState();
+            Debug.Log($"🎮 设置游戏结束时禁用控制: {disable}");
+        }
+
         #endregion
 
         #region 调试功能
@@ -415,11 +538,22 @@ namespace BugFixerGame
         {
             if (!showDebugGUI) return;
 
-            GUILayout.BeginArea(new Rect(10, Screen.height - 250, 400, 240));
+            GUILayout.BeginArea(new Rect(10, Screen.height - 300, 400, 290));
             GUILayout.Label("=== Player Debug ===");
 
             GUILayout.Label($"地面状态: {(isGrounded ? "着地" : "空中")}");
             GUILayout.Label($"移动速度: {controller.velocity.magnitude:F2}");
+            GUILayout.Label($"控制启用: {(controlsEnabled ? "是" : "否")}");
+
+            if (GameManager.Instance != null)
+            {
+                GUILayout.Label($"游戏结束: {GameManager.Instance.IsGameEnded()}");
+                if (GameManager.Instance.IsGameEnded())
+                {
+                    GUILayout.Label($"结束原因: {GameManager.Instance.GetGameEndReason()}");
+                }
+            }
+
             GUILayout.Label($"检测到物体: {(currentDetectedObject ? currentDetectedObject.name : "无")}");
             GUILayout.Label($"检测到Bug: {(currentDetectedBugObject ? currentDetectedBugObject.name : "无")}");
             GUILayout.Label($"Bug激活状态: {(currentDetectedBugObject ? currentDetectedBugObject.IsBugActive().ToString() : "N/A")}");
@@ -443,7 +577,7 @@ namespace BugFixerGame
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("强制检测当前物体"))
             {
-                if (currentDetectedObject != null)
+                if (currentDetectedObject != null && controlsEnabled)
                 {
                     CompleteObjectDetection();
                 }
@@ -451,6 +585,19 @@ namespace BugFixerGame
             if (GUILayout.Button("取消长按"))
             {
                 ForceStopHold();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("切换控制状态"))
+            {
+                SetControlsEnabled(!controlsEnabled);
+            }
+            if (GUILayout.Button("重置控制"))
+            {
+                SetControlsEnabled(true);
+                disableControlsOnGameEnd = true;
+                UpdateControlsState();
             }
             GUILayout.EndHorizontal();
 
