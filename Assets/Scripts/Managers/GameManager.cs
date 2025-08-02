@@ -98,6 +98,9 @@ namespace BugFixerGame
 
             // 短暂延迟确保清理完成
             StartCoroutine(StartGameDelayed());
+
+            //播放游戏开始音效并切换音乐
+            AudioManager.Instance?.OnGameStart();
         }
 
         private System.Collections.IEnumerator StartGameDelayed()
@@ -151,6 +154,9 @@ namespace BugFixerGame
             // 取消暂停并通知 UIManager 切换到主菜单
             ResumeGame();
             UIManager.Instance?.ShowMainMenu();
+
+            // 返回主菜单音乐
+            AudioManager.Instance?.OnReturnToMainMenu();
         }
 
         /// <summary>

@@ -409,10 +409,20 @@ namespace BugFixerGame
         {
             // 主菜单按钮
             if (startGameButton)
-                startGameButton.onClick.AddListener(() => GameManager.Instance.StartGame());
+            {
+                startGameButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound(); // ✨ 按钮音效
+                    GameManager.Instance.StartGame();
+                });
+            }
 
             if (quitGameButton)
-                quitGameButton.onClick.AddListener(() => Application.Quit());
+            {
+                quitGameButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound(); // ✨ 按钮音效
+                    Application.Quit();
+                });
+            }
 
             // 暂停菜单按钮
             if (resumeButton)
@@ -420,6 +430,7 @@ namespace BugFixerGame
                 resumeButton.onClick.RemoveAllListeners();
                 resumeButton.onClick.AddListener(() =>
                 {
+                    AudioManager.Instance?.PlayButtonClickSound(); // ✨ 按钮音效
                     GameManager.Instance.ResumeGame();
                     // 重新锁定鼠标
                     var camCtrl = Camera.main?.GetComponent<CameraController>();
@@ -434,7 +445,10 @@ namespace BugFixerGame
             }
 
             if (returnToMenuButton)
-                returnToMenuButton.onClick.AddListener(() => GameManager.Instance.ReturnToMainMenu());
+                returnToMenuButton.onClick.AddListener(() => {
+                    AudioManager.Instance?.PlayButtonClickSound(); // ✨ 按钮音效
+                    GameManager.Instance.ReturnToMainMenu();
+                    });
 
             // 原有的游戏结束按钮（可能是Bad End用的）
             if (restartGameButton)
@@ -840,6 +854,9 @@ namespace BugFixerGame
             // 重置检测UI到默认状态（确保crosshair显示）
             ResetDetectionUIToDefault();
 
+            //切换到游戏音乐
+            AudioManager.Instance?.OnShowGameHUD();
+
             Debug.Log("🎮 显示游戏HUD - 魔法球UI已重新生成，检测UI已重置到默认状态");
         }
 
@@ -858,6 +875,9 @@ namespace BugFixerGame
 
             // 重置检测UI到默认状态
             ResetDetectionUIToDefault();
+
+            // 切换到主菜单音乐
+            AudioManager.Instance?.OnShowMainMenu();
 
             Debug.Log("🏠 显示主菜单 - 魔法球UI已清理，检测UI已重置到默认状态");
         }

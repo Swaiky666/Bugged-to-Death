@@ -622,6 +622,8 @@ MonoBehaviour:
   bugSprite: {fileID: 21300000, guid: ca664606496cf834c9c84f8758e6e385, type: 3}
   messageSprite: {fileID: 21300000, guid: fdc50f42056447f4d9c0e10ad11e047b, type: 3}
   alertSprite: {fileID: 21300000, guid: 31f3e8a19d3a4974aa977c59f5634c47, type: 3}
+  enableMessagePersistence: 1
+  enableDebugLog: 1
 --- !u!114 &156390624
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3241,7 +3243,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1421575120}
-  - component: {fileID: 1421575119}
+  - component: {fileID: 1421575121}
   m_Layer: 0
   m_Name: AudioManager
   m_TagString: Untagged
@@ -3249,102 +3251,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1421575119
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1421575118}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 525516a67b3134045b68cc9051f419da, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  masterMixerGroup: {fileID: 0}
-  musicMixerGroup: {fileID: 0}
-  sfxMixerGroup: {fileID: 0}
-  ambientMixerGroup: {fileID: 0}
-  menuBackgroundMusic:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  gameBackgroundMusic:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  ambientSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  musicFadeTime: 2
-  castingSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  bugFixSuccessSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  bugFixFailSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  buttonClickSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  gameStartSound:
-    name: 
-    clip: {fileID: 0}
-    volume: 0
-    pitch: 0
-    loop: 0
-    is3D: 0
-    spatialBlend: 0
-  sfxAudioSourcePoolSize: 5
-  maxConcurrentSounds: 10
-  masterVolume: 1
-  musicVolume: 0.7
-  sfxVolume: 0.8
-  ambientVolume: 0.5
-  enableDopplerEffect: 0
-  muteOnFocusLoss: 1
-  persistVolumeSettings: 1
-  autoDetectAudioListener: 1
-  currentMusicState: "\u65E0"
-  currentAmbientState: "\u65E0"
-  activeSFXCount: 0
-  isMuted: 0
-  showDebugInfo: 0
 --- !u!4 &1421575120
 Transform:
   m_ObjectHideFlags: 0
@@ -3360,6 +3266,29 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1421575121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1421575118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 525516a67b3134045b68cc9051f419da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  menuMusic: {fileID: 8300000, guid: e18713d5c19d4a84fa2c91618335bcd5, type: 3}
+  gameMusic: {fileID: 8300000, guid: ceac6cbd8d61c7244ba5d476d38e9c09, type: 3}
+  ambientSound: {fileID: 0}
+  castingSound: {fileID: 8300000, guid: 1ea61eb40a800694d84f6c9e740324d4, type: 3}
+  bugFixSuccessSound: {fileID: 8300000, guid: 2d481372860dc3a49ab70e04361ae843, type: 3}
+  bugFixFailSound: {fileID: 8300000, guid: 6392820df352197438e486086037e9da, type: 3}
+  buttonClickSound: {fileID: 8300000, guid: 9ad0bf29e95214440a2a873b2f5a5375, type: 3}
+  gameStartSound: {fileID: 8300000, guid: bca529243eea41144ae3fc52ebeb8e07, type: 3}
+  musicVolume: 0.531
+  sfxVolume: 0.542
+  showDebugPanel: 0
 --- !u!1 &1515136531
 GameObject:
   m_ObjectHideFlags: 0
@@ -3765,8 +3694,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1617628260}
   - component: {fileID: 1617628259}
-  - component: {fileID: 1617628258}
   - component: {fileID: 1617628257}
+  - component: {fileID: 1617628261}
   m_Layer: 0
   m_Name: MainMenuCamera
   m_TagString: Untagged
@@ -3818,14 +3747,6 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
---- !u!81 &1617628258
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1617628256}
-  m_Enabled: 1
 --- !u!20 &1617628259
 Camera:
   m_ObjectHideFlags: 0
@@ -3886,12 +3807,20 @@ Transform:
   m_GameObject: {fileID: 1617628256}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -30.024748, y: 23.992304, z: -27.212591}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!81 &1617628261
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1617628256}
+  m_Enabled: 1
 --- !u!1 &1637479380
 GameObject:
   m_ObjectHideFlags: 0
