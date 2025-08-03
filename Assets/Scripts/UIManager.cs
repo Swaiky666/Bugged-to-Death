@@ -14,7 +14,6 @@ namespace BugFixerGame
         [SerializeField] private GameObject hudPanel;
         [SerializeField] private GameObject pausePanel;
         [SerializeField] private GameObject gameOverPanel;     // Bad End面板
-        [SerializeField] private GameObject happyEndPanel;     // Happy End面板
         [SerializeField] private GameObject badEndPanel;       // 额外的Bad End面板（如果需要）
 
         [Header("过场动画系统")]
@@ -70,8 +69,6 @@ namespace BugFixerGame
         [Header("Game End UI Elements")]
         [SerializeField] private Button badEndRestartButton;           // Bad End重新开始按钮
         [SerializeField] private Button badEndMenuButton;              // Bad End返回菜单按钮
-        [SerializeField] private Button happyEndRestartButton;         // Happy End重新开始按钮
-        [SerializeField] private Button happyEndMenuButton;            // Happy End返回菜单按钮
 
         [Header("Game End Settings")]
         [SerializeField] private float gameEndFadeTime = 1f;           // 游戏结束面板淡入时间
@@ -127,6 +124,7 @@ namespace BugFixerGame
             GameManager.OnGameOver += ShowBadEnd;           // 订阅Bad End事件
             GameManager.OnHappyEnd += ShowHappyEnd;         // 订阅Happy End事件
             GameManager.OnGameEnded += HandleGameEnded;     // 订阅通用游戏结束事件
+            GameManager.OnGameInstanceCreated += OnGameInstanceCreated; // 🆕 订阅游戏实例创建完成事件
 
             // 订阅Player的检测相关事件
             Player.OnObjectHoldProgress += HandleDetectionProgress;
@@ -140,6 +138,7 @@ namespace BugFixerGame
             GameManager.OnGameOver -= ShowBadEnd;
             GameManager.OnHappyEnd -= ShowHappyEnd;
             GameManager.OnGameEnded -= HandleGameEnded;
+            GameManager.OnGameInstanceCreated -= OnGameInstanceCreated; // 🆕 取消订阅
 
             // 取消订阅Player事件
             Player.OnObjectHoldProgress -= HandleDetectionProgress;
@@ -159,6 +158,33 @@ namespace BugFixerGame
                 && Input.GetKeyDown(skipKey))
             {
                 SkipCutscene();
+            }
+        }
+
+        #endregion
+
+        #region 🆕 游戏实例创建完成处理
+
+        /// <summary>
+        /// 🆕 处理游戏实例创建完成事件
+        /// </summary>
+        private void OnGameInstanceCreated()
+        {
+            // 只有在播放Intro过场动画时才处理
+            if (isPlayingCutscene && !isBadEndPlaying && !isHappyEndPlaying)
+            {
+                Debug.Log("🎮 UIManager: 收到游戏实例创建完成事件，准备显示HUD并关闭过场面板");
+
+                // 显示HUD
+                ShowHUD();
+
+                // 关闭过场面板
+                SetPanel(cutscenePanel, false);
+
+                // 重置播放标记
+                isPlayingCutscene = false;
+
+                Debug.Log("🎮 UIManager: Intro流程完成，游戏界面已显示");
             }
         }
 
@@ -236,7 +262,6 @@ namespace BugFixerGame
             foreach (int idx in indices)
                 yield return StartCoroutine(PlaySingleCutscene(idx));
         }
-
 
         /// <summary>
         /// 显示所有动画的时长信息
@@ -669,27 +694,31 @@ namespace BugFixerGame
                 return;
             }
 
-            // 如果正在播放 Happy End，就直接跳到 Happy End 面板
+            // 如果正在播放 Happy End，直接返回主菜单
             if (isHappyEndPlaying)
             {
                 SetPanel(cutscenePanel, false);
-                StartCoroutine(ShowGameEndPanelWithFade(happyEndPanel));
-                UnlockCursorForUI();
+
+                // 🆕 直接返回主菜单，不显示Happy End面板
+                Debug.Log("🎉 跳过Happy End动画，直接返回主菜单");
 
                 isHappyEndPlaying = false;
                 isPlayingCutscene = false;
+
+                // 直接调用返回主菜单
+                GameManager.Instance.ReturnToMainMenu();
                 return;
             }
 
-            // 否则按 Intro 的正常跳过：结束开场并进入游戏
-            GameManager.Instance.StartGame();           // 启动游戏逻辑
+            // 🆕 对于Intro跳过：启动游戏，但让 OnGameInstanceCreated 处理UI切换
+            Debug.Log("🎬 UIManager: 跳过Intro动画，启动游戏实例化...");
+            GameManager.Instance.StartGame();
+
+            // 隐藏主菜单，但保持过场面板显示直到游戏实例化完成
             SetPanel(mainMenuPanel, false);
-            SetPanel(hudPanel, true);
-            SetPanel(cutscenePanel, false);             // 关闭过场面板
-            isPlayingCutscene = false;
+
+            // 注意：不在这里关闭 cutscenePanel，等待 OnGameInstanceCreated 处理
         }
-
-
 
         /// <summary>
         /// 完成过场动画序列
@@ -701,10 +730,6 @@ namespace BugFixerGame
             // 清理当前动画实例
             CleanupCurrentCutscene();
 
-            // 隐藏过场动画面板
-            SetPanel(cutscenePanel, false);
-            Debug.Log("🎬 UIManager: 隐藏过场动画面板");
-
             // 隐藏CutsceneManager（不再需要时）
             if (cutsceneManager != null)
             {
@@ -713,7 +738,6 @@ namespace BugFixerGame
             }
 
             // 重置状态
-            isPlayingCutscene = false;
             currentCutsceneIndex = 0;
             cutsceneSkipped = false;
 
@@ -730,9 +754,10 @@ namespace BugFixerGame
                 Debug.LogError($"❌ UIManager: 触发过场动画完成事件时发生错误: {e.Message}");
             }
 
-            // 开始游戏
-            Debug.Log("🎬 UIManager: 准备调用 StartGameDirectly()");
-            StartGameDirectly();
+            // 🆕 不再在这里直接开始游戏，而是等待 OnGameInstanceCreated
+            // 开始游戏实例化
+            Debug.Log("🎬 UIManager: 准备调用 GameManager.StartGame()");
+            GameManager.Instance.StartGame();
         }
 
         /// <summary>
@@ -1121,7 +1146,6 @@ namespace BugFixerGame
             SetPanel(hudPanel, false);
             SetPanel(pausePanel, false);
             SetPanel(gameOverPanel, false);
-            SetPanel(happyEndPanel, false);
             SetPanel(badEndPanel, false);
 
             // 按钮绑定
@@ -1140,10 +1164,9 @@ namespace BugFixerGame
             {
                 startGameButton.onClick.AddListener(() => {
                     AudioManager.Instance?.PlayButtonClickSound();
-                                // 不直接播放整个序列／不直接显示 HUD
-                                // 而是先播放“Intro”分类的开头过场
+                    // 🆕 播放Intro序列（修改后的版本）
                     StartCoroutine(ShowIntroSequence());
-                            });
+                });
             }
 
             if (quitGameButton)
@@ -1195,18 +1218,6 @@ namespace BugFixerGame
 
             if (badEndMenuButton)
                 badEndMenuButton.onClick.AddListener(() => {
-                    HideAllGameEndPanels();
-                    GameManager.Instance.ReturnToMainMenu();
-                });
-
-            if (happyEndRestartButton)
-                happyEndRestartButton.onClick.AddListener(() => {
-                    HideAllGameEndPanels();
-                    RestartGame();
-                });
-
-            if (happyEndMenuButton)
-                happyEndMenuButton.onClick.AddListener(() => {
                     HideAllGameEndPanels();
                     GameManager.Instance.ReturnToMainMenu();
                 });
@@ -1474,7 +1485,7 @@ namespace BugFixerGame
         }
 
         /// <summary>
-        /// 显示Happy End界面
+        /// 显示Happy End：播放动画后直接返回主菜单
         /// </summary>
         private void ShowHappyEnd()
         {
@@ -1491,65 +1502,29 @@ namespace BugFixerGame
         }
 
         /// <summary>
-        /// Intro 播放完毕或跳过后的收尾流程
+        /// 🆕 Intro 流程：调出过场面板 → 播放 Intro 分类动画 → 启动游戏 → 等待实例化完成 → 显示 HUD → 关闭过场面板
         /// </summary>
-        private IEnumerator CompleteIntroFlow()
+        private IEnumerator ShowIntroSequence()
         {
-            // 隐藏过场面板
-            SetPanel(cutscenePanel, false);
+            // 1. 标记开始播放
+            isPlayingCutscene = true;
+            cutsceneSkipped = false;
 
-            // 显示 HUD 面板
-            SetPanel(hudPanel, true);
+            // 2. 调出过场面板，隐藏主菜单
+            SetPanel(cutscenePanel, true);
+            SetPanel(mainMenuPanel, false);
+            // 注意：不要在这里隐藏HUD，因为可能还没显示
 
-            // （可选）在这里实例化或激活开场后需要的物件
-            // Instantiate(introEndPrefab);
+            // 3. 播放 Intro 分类的所有过场动画
+            yield return StartCoroutine(PlayIntroSequence());
 
-            isPlayingCutscene = false;
-            yield break;
-        }
+            // 4. 播放完毕后，启动游戏实例化
+            Debug.Log("🎬 UIManager: Intro动画播放完成，开始启动游戏...");
+            GameManager.Instance.StartGame();
 
-        /// <summary>
-        /// Bad End 播放完毕或跳过后的收尾流程
-        /// </summary>
-        private IEnumerator CompleteBadEndFlow()
-        {
-            // 隐藏过场面板
-            SetPanel(cutscenePanel, false);
-
-            // 显示 Bad End 面板
-            if (badEndPanel != null)
-                yield return StartCoroutine(ShowGameEndPanelWithFade(badEndPanel));
-            else if (gameOverPanel != null)
-                yield return StartCoroutine(ShowGameEndPanelWithFade(gameOverPanel));
-
-            // （可选）实例化 BadEnd 相关物件
-            // Instantiate(badEndEffectPrefab);
-
-            UnlockCursorForUI();
-
-            isBadEndPlaying = false;
-            isPlayingCutscene = false;
-        }
-
-        /// <summary>
-        /// Happy End 播放完毕或跳过后的收尾流程
-        /// </summary>
-        private IEnumerator CompleteHappyEndFlow()
-        {
-            // 隐藏过场面板
-            SetPanel(cutscenePanel, false);
-
-            // 显示 Happy End 面板
-            if (happyEndPanel != null)
-                yield return StartCoroutine(ShowGameEndPanelWithFade(happyEndPanel));
-
-            // （可选）实例化 HappyEnd 相关物件
-            // Instantiate(happyEndEffectPrefab);
-
-            UnlockCursorForUI();
-
-            isHappyEndPlaying = false;
-            isPlayingCutscene = false;
+            // 🆕 注意：不再在这里直接显示HUD和关闭面板
+            // 这些操作将在 OnGameInstanceCreated() 中完成
+            Debug.Log("🎬 UIManager: 等待游戏实例创建完成...");
         }
 
         /// <summary>
@@ -1569,7 +1544,7 @@ namespace BugFixerGame
         }
 
         /// <summary>
-        /// Happy End 流程：调出过场面板 → 播放 HappyEnd 分类动画 → 关闭过场面板 → 显示 Happy End 面板
+        /// Happy End 流程：调出过场面板 → 播放 HappyEnd 分类动画 → 关闭过场面板 → 直接返回主菜单
         /// </summary>
         private IEnumerator ShowHappyEndSequence()
         {
@@ -1585,41 +1560,45 @@ namespace BugFixerGame
         }
 
         /// <summary>
-        /// Intro 流程：调出过场面板 → 播放 Intro 分类动画 → 启动游戏 → 关闭过场面板 → 显示 HUD
+        /// Bad End 播放完毕或跳过后的收尾流程
         /// </summary>
-        private IEnumerator ShowIntroSequence()
+        private IEnumerator CompleteBadEndFlow()
         {
-            // 1. 标记开始播放
-            isPlayingCutscene = true;
-            cutsceneSkipped = false;
-
-            // 2. 调出过场面板，隐藏 HUD
-            SetPanel(cutscenePanel, true);
-            SetPanel(hudPanel, false);
-
-            // 3. 播放 Intro 分类的所有过场动画
-            yield return StartCoroutine(PlayIntroSequence());
-
-            // —— 播放完毕后，先启动游戏 —— 
-            GameManager.Instance.StartGame();
-
-            SetPanel(mainMenuPanel, false);
-
-            // 4. 显示 HUD 面板
-            SetPanel(hudPanel, true);
-
-            
-
-            // 5. 再关闭过场面板
+            // 隐藏过场面板
             SetPanel(cutscenePanel, false);
 
+            // 显示 Bad End 面板
+            if (badEndPanel != null)
+                yield return StartCoroutine(ShowGameEndPanelWithFade(badEndPanel));
+            else if (gameOverPanel != null)
+                yield return StartCoroutine(ShowGameEndPanelWithFade(gameOverPanel));
 
-            // 6. 重置播放标记
+            UnlockCursorForUI();
+
+            isBadEndPlaying = false;
             isPlayingCutscene = false;
         }
 
+        /// <summary>
+        /// Happy End 播放完毕或跳过后的收尾流程：直接返回主菜单
+        /// </summary>
+        private IEnumerator CompleteHappyEndFlow()
+        {
+            // 隐藏过场面板
+            SetPanel(cutscenePanel, false);
 
+            // 🆕 直接返回主菜单，不显示Happy End面板
+            Debug.Log("🎉 Happy End动画播放完成，返回主菜单");
 
+            // 重置状态
+            isHappyEndPlaying = false;
+            isPlayingCutscene = false;
+
+            // 直接调用返回主菜单
+            GameManager.Instance.ReturnToMainMenu();
+
+            yield break;
+        }
 
         /// <summary>
         /// 带淡入效果显示游戏结束面板
@@ -1655,7 +1634,6 @@ namespace BugFixerGame
         private void HideAllGameEndPanels()
         {
             SetPanel(gameOverPanel, false);
-            SetPanel(happyEndPanel, false);
             SetPanel(badEndPanel, false);
         }
 
@@ -1759,9 +1737,6 @@ namespace BugFixerGame
 
         #region 过场动画时长管理 - 转发给 CutsceneManager
 
-
-
-
         /// <summary>
         /// 设置指定动画的手动播放时间
         /// </summary>
@@ -1803,7 +1778,6 @@ namespace BugFixerGame
         }
 
         #endregion
-
 
         #region 公共接口
 
@@ -1857,7 +1831,6 @@ namespace BugFixerGame
             GameManager.Instance.StartGame();
         }
 
-
         #endregion
 
         #region 调试功能
@@ -1900,7 +1873,6 @@ namespace BugFixerGame
         }
 
         #endregion
-
 
         /// <summary>
         /// 查找CutsceneManager
@@ -2045,7 +2017,5 @@ namespace BugFixerGame
             Debug.Log("🔄 UIManager: 已重置为推荐设置");
             ShowPlaybackSettings();
         }
-
-
     }
 }
