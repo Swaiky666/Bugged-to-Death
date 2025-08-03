@@ -588,7 +588,8 @@ namespace BugFixerGame
                 }
 
                 // 检查是否有BugObject组件
-                BugObject bug = hit.collider.GetComponent<BugObject>();
+                BugObject bug = hit.collider.GetComponentInParent<BugObject>();
+
                 if (bug != null)
                 {
                     currentDetectedBugObject = bug;
