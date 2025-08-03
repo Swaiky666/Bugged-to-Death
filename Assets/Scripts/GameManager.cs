@@ -1,4 +1,4 @@
-﻿// GameManager.cs - 完整的蓝量系统、游戏结束条件和门系统
+﻿// GameManager.cs - 完整的蓝量系统、游戏结束条件和门系统（统一距离检测）
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -42,7 +42,8 @@ namespace BugFixerGame
 
         [Header("Door System Settings")]
         [SerializeField] private bool enableDoorSystem = true;          // 启用门系统
-        [SerializeField] private bool globalDoorState = false;          // 全局门状态（开启/关闭）
+        [SerializeField] private float doorDetectionDistance = 3f;      // 门检测距离
+        [SerializeField] private float doorDetectionInterval = 0.1f;    // 门检测间隔（秒）
         [SerializeField] private bool showDoorDebugInfo = false;        // 显示门调试信息
 
         [Header("Current Game Status (Runtime)")]
@@ -50,9 +51,11 @@ namespace BugFixerGame
         [SerializeField, ReadOnly] private string gameEndReason = "";   // 游戏结束原因
 
         [Header("Door System Status (Runtime)")]
-        [SerializeField, ReadOnly] private int registeredDoorsCount = 0;    // 已注册门数量
-        [SerializeField, ReadOnly] private int doorsNearPlayer = 0;         // 玩家附近的门数量
-        [SerializeField, ReadOnly] private bool anyPlayerNearDoor = false;  // 是否有玩家在任何门附近
+        [SerializeField, ReadOnly] private int registeredDoorsCount = 0;        // 已注册门数量
+        [SerializeField, ReadOnly] private bool globalDoorState = false;        // 全局门状态（开启/关闭）
+        [SerializeField, ReadOnly] private bool anyPlayerNearDoor = false;      // 是否有玩家在任何门附近
+        [SerializeField, ReadOnly] private float closestDoorDistance = float.MaxValue; // 最近门的距离
+        [SerializeField, ReadOnly] private string playerStatus = "未找到";        // 玩家状态
 
         private GameObject currentGameInstance;
         private bool isPaused = false;
@@ -60,7 +63,8 @@ namespace BugFixerGame
 
         // 门系统管理
         private List<Door> registeredDoors = new List<Door>();
-        private bool lastPlayerNearDoorState = false;
+        private Transform playerTransform = null;
+        private float lastDoorDetectionTime = 0f;
 
         public static GameManager Instance { get; private set; }
 
@@ -107,6 +111,16 @@ namespace BugFixerGame
             if (Input.GetKeyDown(KeyCode.Escape) && !gameEnded)
             {
                 TogglePause();
+            }
+
+            // 门系统距离检测
+            if (enableDoorSystem && !gameEnded)
+            {
+                if (Time.time - lastDoorDetectionTime >= doorDetectionInterval)
+                {
+                    UpdateDoorSystem();
+                    lastDoorDetectionTime = Time.time;
+                }
             }
         }
 
@@ -389,6 +403,14 @@ namespace BugFixerGame
 
         #region 门系统管理
 
+        // 在GameManager.cs中增加此方法
+        public void RegisterPlayer(Transform playerTransform)
+        {
+            this.playerTransform = playerTransform;
+            Debug.Log($"🎮 玩家 {playerTransform.name} 已注册到GameManager");
+        }
+
+
         /// <summary>
         /// 初始化门系统
         /// </summary>
@@ -402,9 +424,10 @@ namespace BugFixerGame
             // 重置门状态
             globalDoorState = false;
             anyPlayerNearDoor = false;
-            doorsNearPlayer = 0;
+            closestDoorDistance = float.MaxValue;
             registeredDoorsCount = 0;
-            lastPlayerNearDoorState = false;
+            playerTransform = null;
+            playerStatus = "未找到";
 
             Debug.Log("🚪 门系统初始化完成");
         }
@@ -422,11 +445,122 @@ namespace BugFixerGame
             // 重置状态
             globalDoorState = false;
             anyPlayerNearDoor = false;
-            doorsNearPlayer = 0;
+            closestDoorDistance = float.MaxValue;
             registeredDoorsCount = 0;
-            lastPlayerNearDoorState = false;
+            playerTransform = null;
+            playerStatus = "已清理";
 
             Debug.Log("🚪 门系统已清理");
+        }
+
+        /// <summary>
+        /// 更新门系统 - 检测玩家与所有门的距离
+        /// </summary>
+        private void UpdateDoorSystem()
+        {
+            // 查找玩家（如果还没有找到的话）
+            if (playerTransform == null)
+            {
+                FindPlayer();
+            }
+
+            // 如果没有玩家或没有门，直接返回
+            if (playerTransform == null || registeredDoors.Count == 0)
+            {
+                if (anyPlayerNearDoor)
+                {
+                    // 之前有玩家在门附近，现在没有了，关闭所有门
+                    SetAllDoorsState(false);
+                }
+                return;
+            }
+
+            // 计算玩家到所有门的最短距离
+            float shortestDistance = float.MaxValue;
+            bool playerNearAnyDoor = false;
+
+            foreach (var door in registeredDoors)
+            {
+                if (door != null)
+                {
+                    float distance = Vector3.Distance(playerTransform.position, door.GetPosition());
+                    if (distance < shortestDistance)
+                    {
+                        shortestDistance = distance;
+                    }
+
+                    if (distance <= doorDetectionDistance)
+                    {
+                        playerNearAnyDoor = true;
+                    }
+                }
+            }
+
+            closestDoorDistance = shortestDistance;
+
+            // 检查状态是否改变
+            if (playerNearAnyDoor != anyPlayerNearDoor)
+            {
+                anyPlayerNearDoor = playerNearAnyDoor;
+                SetAllDoorsState(playerNearAnyDoor);
+
+                if (showDoorDebugInfo)
+                {
+                    Debug.Log($"🚪 门系统状态改变: {(playerNearAnyDoor ? "玩家靠近门" : "玩家远离门")} " +
+                             $"(最近距离: {closestDoorDistance:F2}m, 检测距离: {doorDetectionDistance:F2}m)");
+                }
+            }
+
+            // 更新玩家状态显示
+            playerStatus = $"位置: {playerTransform.position.ToString("F1")}, 最近门距离: {closestDoorDistance:F2}m";
+        }
+
+        /// <summary>
+        /// 查找玩家Transform
+        /// </summary>
+        private void FindPlayer()
+        {
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null)
+            {
+                playerTransform = playerObj.transform;
+                playerStatus = "已找到";
+                if (showDoorDebugInfo)
+                {
+                    Debug.Log($"🎮 门系统找到玩家: {playerObj.name}");
+                }
+            }
+            else
+            {
+                playerStatus = "未找到";
+            }
+        }
+
+        /// <summary>
+        /// 设置所有门的状态
+        /// </summary>
+        private void SetAllDoorsState(bool open)
+        {
+            if (globalDoorState == open) return; // 状态相同，无需改变
+
+            globalDoorState = open;
+
+            // 更新所有门的状态
+            foreach (var door in registeredDoors)
+            {
+                if (door != null)
+                {
+                    door.SetDoorState(open, true);
+                }
+            }
+
+            // 触发全局门状态改变事件
+            OnGlobalDoorStateChanged?.Invoke(globalDoorState);
+
+            if (showDoorDebugInfo)
+            {
+                Debug.Log($"🚪 所有门状态设置为: {(open ? "开启" : "关闭")} (门数量: {registeredDoorsCount})");
+            }
         }
 
         /// <summary>
@@ -473,74 +607,6 @@ namespace BugFixerGame
             {
                 registeredDoorsCount = registeredDoors.Count;
                 Debug.Log($"❌ 门 {door.gameObject.name} 已从GameManager注销 (剩余: {registeredDoorsCount})");
-
-                // 重新计算玩家附近门的数量
-                UpdatePlayerNearDoorCount();
-            }
-        }
-
-        /// <summary>
-        /// 更新全局门状态（由门对象调用）
-        /// </summary>
-        public void UpdateGlobalDoorState(bool playerNearDoor)
-        {
-            if (!enableDoorSystem) return;
-
-            // 更新玩家附近门的计数
-            UpdatePlayerNearDoorCount();
-
-            // 检查是否需要改变全局门状态
-            bool shouldDoorsBeOpen = anyPlayerNearDoor;
-
-            if (shouldDoorsBeOpen != globalDoorState)
-            {
-                globalDoorState = shouldDoorsBeOpen;
-
-                // 更新所有门的状态
-                foreach (var door in registeredDoors)
-                {
-                    if (door != null)
-                    {
-                        door.SetDoorState(globalDoorState, true);
-                    }
-                }
-
-                // 触发全局门状态改变事件
-                OnGlobalDoorStateChanged?.Invoke(globalDoorState);
-
-                if (showDoorDebugInfo)
-                {
-                    Debug.Log($"🚪 全局门状态改变: {(globalDoorState ? "全部开启" : "全部关闭")} " +
-                             $"(玩家附近门数量: {doorsNearPlayer}/{registeredDoorsCount})");
-                }
-            }
-        }
-
-        /// <summary>
-        /// 更新玩家附近门的数量
-        /// </summary>
-        private void UpdatePlayerNearDoorCount()
-        {
-            doorsNearPlayer = 0;
-
-            foreach (var door in registeredDoors)
-            {
-                if (door != null && door.IsPlayerNearby())
-                {
-                    doorsNearPlayer++;
-                }
-            }
-
-            bool newAnyPlayerNearDoor = doorsNearPlayer > 0;
-
-            if (newAnyPlayerNearDoor != anyPlayerNearDoor)
-            {
-                anyPlayerNearDoor = newAnyPlayerNearDoor;
-
-                if (showDoorDebugInfo)
-                {
-                    Debug.Log($"🎯 玩家门检测状态改变: {(anyPlayerNearDoor ? $"检测到{doorsNearPlayer}个门" : "没有门在附近")}");
-                }
             }
         }
 
@@ -574,7 +640,9 @@ namespace BugFixerGame
             if (!enableDoorSystem) return "门系统未启用";
 
             return $"门系统: {registeredDoorsCount}个门已注册, " +
-                   $"{doorsNearPlayer}个门附近有玩家, " +
+                   $"检测距离: {doorDetectionDistance}m, " +
+                   $"玩家在门附近: {(anyPlayerNearDoor ? "是" : "否")}, " +
+                   $"最近门距离: {closestDoorDistance:F2}m, " +
                    $"全局状态: {(globalDoorState ? "开启" : "关闭")}";
         }
 
@@ -589,8 +657,6 @@ namespace BugFixerGame
             {
                 registeredDoorsCount = registeredDoors.Count;
                 Debug.Log($"🧹 清理了{removedCount}个已销毁的门对象，剩余: {registeredDoorsCount}");
-
-                UpdatePlayerNearDoorCount();
             }
         }
 
@@ -598,8 +664,9 @@ namespace BugFixerGame
         public bool IsDoorSystemEnabled() => enableDoorSystem;
         public bool GetGlobalDoorState() => globalDoorState;
         public int GetRegisteredDoorsCount() => registeredDoorsCount;
-        public int GetDoorsNearPlayerCount() => doorsNearPlayer;
         public bool IsAnyPlayerNearDoor() => anyPlayerNearDoor;
+        public float GetClosestDoorDistance() => closestDoorDistance;
+        public float GetDoorDetectionDistance() => doorDetectionDistance;
         public List<Door> GetRegisteredDoors() => new List<Door>(registeredDoors); // 返回副本
 
         /// <summary>
@@ -621,6 +688,24 @@ namespace BugFixerGame
             Debug.Log($"🔧 门系统{(enabled ? "启用" : "禁用")}");
         }
 
+        /// <summary>
+        /// 设置门检测距离
+        /// </summary>
+        public void SetDoorDetectionDistance(float distance)
+        {
+            doorDetectionDistance = Mathf.Max(0.1f, distance);
+            Debug.Log($"🔧 门检测距离设置为: {doorDetectionDistance}m");
+        }
+
+        /// <summary>
+        /// 设置门检测间隔
+        /// </summary>
+        public void SetDoorDetectionInterval(float interval)
+        {
+            doorDetectionInterval = Mathf.Max(0.01f, interval);
+            Debug.Log($"🔧 门检测间隔设置为: {doorDetectionInterval}秒");
+        }
+
         #endregion
 
         #region 调试功能
@@ -632,7 +717,7 @@ namespace BugFixerGame
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(10, 10, 350, 300));
+            GUILayout.BeginArea(new Rect(10, 10, 400, 350));
             GUILayout.Label("=== GameManager 调试 ===");
             GUILayout.Label($"当前魔法值: {currentMana}/{maxMana}");
             GUILayout.Label($"魔法值百分比: {GetManaPercentage():P0}");
@@ -652,7 +737,11 @@ namespace BugFixerGame
             {
                 GUILayout.Label("--- 门系统 ---");
                 GUILayout.Label($"已注册门: {registeredDoorsCount}");
-                GUILayout.Label($"附近门数: {doorsNearPlayer}");
+                GUILayout.Label($"检测距离: {doorDetectionDistance:F1}m");
+                GUILayout.Label($"检测间隔: {doorDetectionInterval:F2}s");
+                GUILayout.Label($"玩家状态: {playerStatus}");
+                GUILayout.Label($"玩家在门附近: {(anyPlayerNearDoor ? "是" : "否")}");
+                GUILayout.Label($"最近门距离: {closestDoorDistance:F2}m");
                 GUILayout.Label($"全局状态: {(globalDoorState ? "开启" : "关闭")}");
             }
 
@@ -703,13 +792,25 @@ namespace BugFixerGame
                 GUILayout.EndHorizontal();
 
                 GUILayout.BeginHorizontal();
+                if (GUILayout.Button("查找玩家"))
+                {
+                    FindPlayer();
+                }
                 if (GUILayout.Button("清理门列表"))
                 {
                     CleanupDestroyedDoors();
                 }
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
                 if (GUILayout.Button("门系统信息"))
                 {
                     Debug.Log(GetDoorSystemInfo());
+                }
+                if (GUILayout.Button("重置门系统"))
+                {
+                    CleanupDoorSystem();
+                    InitializeDoorSystem();
                 }
                 GUILayout.EndHorizontal();
             }
@@ -833,13 +934,14 @@ namespace BugFixerGame
             }
         }
 
-        [ContextMenu("显示门系统信息")]
-        private void ShowDoorSystemInfo()
+        [ContextMenu("显示门系统详细信息")]
+        private void ShowDoorSystemDetailedInfo()
         {
             if (Application.isPlaying)
             {
-                Debug.Log("=== 门系统信息 ===");
+                Debug.Log("=== 门系统详细信息 ===");
                 Debug.Log(GetDoorSystemInfo());
+                Debug.Log($"玩家Transform: {(playerTransform != null ? playerTransform.name : "未找到")}");
 
                 if (registeredDoors.Count > 0)
                 {
@@ -849,11 +951,14 @@ namespace BugFixerGame
                         var door = registeredDoors[i];
                         if (door != null)
                         {
+                            float distance = playerTransform != null ?
+                                Vector3.Distance(playerTransform.position, door.GetPosition()) : float.MaxValue;
+
                             Debug.Log($"  {i + 1}. {door.gameObject.name} - " +
+                                     $"位置: {door.GetPosition():F1}, " +
                                      $"状态: {(door.IsOpen() ? "开启" : "关闭")}, " +
-                                     $"玩家距离: {door.GetPlayerDistance():F2}m, " +
-                                     $"检测距离: {door.GetDetectionDistance():F2}m, " +
-                                     $"玩家附近: {(door.IsPlayerNearby() ? "是" : "否")}");
+                                     $"距离: {distance:F2}m, " +
+                                     $"在检测范围内: {(distance <= doorDetectionDistance ? "是" : "否")}");
                         }
                         else
                         {
@@ -865,6 +970,16 @@ namespace BugFixerGame
                 {
                     Debug.Log("没有已注册的门");
                 }
+            }
+        }
+
+        [ContextMenu("手动查找玩家")]
+        private void TestFindPlayer()
+        {
+            if (Application.isPlaying)
+            {
+                FindPlayer();
+                Debug.Log($"🔍 手动查找玩家结果: {playerStatus}");
             }
         }
 
@@ -894,6 +1009,35 @@ namespace BugFixerGame
             if (Application.isPlaying)
             {
                 SetDoorSystemEnabled(!enableDoorSystem);
+            }
+        }
+
+        [ContextMenu("测试距离检测")]
+        private void TestDistanceDetection()
+        {
+            if (Application.isPlaying && enableDoorSystem)
+            {
+                Debug.Log("🧪 开始测试距离检测...");
+                UpdateDoorSystem();
+                Debug.Log($"检测完成 - 玩家在门附近: {anyPlayerNearDoor}, 最近距离: {closestDoorDistance:F2}m");
+            }
+        }
+
+        [ContextMenu("调整检测距离 +1m")]
+        private void TestIncreaseDetectionDistance()
+        {
+            if (Application.isPlaying)
+            {
+                SetDoorDetectionDistance(doorDetectionDistance + 1f);
+            }
+        }
+
+        [ContextMenu("调整检测距离 -1m")]
+        private void TestDecreaseDetectionDistance()
+        {
+            if (Application.isPlaying)
+            {
+                SetDoorDetectionDistance(doorDetectionDistance - 1f);
             }
         }
 

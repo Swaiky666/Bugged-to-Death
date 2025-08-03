@@ -1,25 +1,41 @@
-﻿// ProximityMessageSender.cs
+﻿// ProximityMessageSender.cs - 改进版：支持选择消息类型
 using UnityEngine;
 
 namespace BugFixerGame
 {
+    /// <summary>
+    /// 消息类型枚举
+    /// </summary>
+    public enum ProximityMessageType
+    {
+        Message,    // 普通消息（持久化，置顶显示）
+        Alert       // 警告消息（临时显示）
+    }
+
     public class ProximityMessageSender : MonoBehaviour
     {
+        [Header("消息类型设置")]
+        [SerializeField] private ProximityMessageType messageType = ProximityMessageType.Message; // 消息类型
+        [SerializeField] private string messageTitle = "提示";                                     // 消息标题（可自定义）
+
         [Header("消息内容")]
-        [SerializeField][TextArea(3, 5)] private string messageContent = "这是一条消息"; // 消息内容
+        [SerializeField][TextArea(3, 5)] private string messageContent = "这是一条消息";           // 消息内容
+
+        [Header("显示时间设置")]
+        [SerializeField] private bool useCustomDisplayTime = false;                               // 是否使用自定义显示时间
+        [SerializeField] private float customDisplayTime = 5f;                                   // 自定义显示时间（仅当useCustomDisplayTime为true时生效）
 
         [Header("行为设置")]
-        [SerializeField] private bool triggerOnce = true;              // 是否只触发一次
-        [SerializeField] private bool destroyAfterTrigger = true;      // 触发后是否销毁
+        [SerializeField] private bool triggerOnce = true;                                        // 是否只触发一次
+        [SerializeField] private bool destroyAfterTrigger = true;                                // 触发后是否销毁
 
         [Header("调试设置")]
-        [SerializeField] private bool showDebugGizmos = true;          // 是否显示调试球体
-        [SerializeField] private bool enableDebugLog = true;           // 是否启用调试日志
+        [SerializeField] private bool showDebugGizmos = true;                                    // 是否显示调试球体
+        [SerializeField] private bool enableDebugLog = true;                                     // 是否启用调试日志
 
         // 固定参数（不在Inspector中显示）
         private const float TRIGGER_DISTANCE = 3f;        // 固定触发距离3米
         private const string TARGET_TAG = "Player";       // 固定目标标签
-        private const string MESSAGE_TITLE = "提示";      // 固定消息标题
         private const float DESTROY_DELAY = 0.1f;         // 固定销毁延迟
 
         // 私有变量
@@ -39,7 +55,8 @@ namespace BugFixerGame
 
             if (enableDebugLog)
             {
-                Debug.Log($"📡 ProximityMessageSender [{name}] 初始化完成 - 内容: '{messageContent}'");
+                string typeText = messageType == ProximityMessageType.Message ? "消息" : "警告";
+                Debug.Log($"📡 ProximityMessageSender [{name}] 初始化完成 - 类型: {typeText}, 标题: '{messageTitle}', 内容: '{messageContent}'");
             }
         }
 
@@ -69,6 +86,18 @@ namespace BugFixerGame
             {
                 messageContent = "这是一条消息";
                 Debug.LogWarning($"⚠️ ProximityMessageSender [{name}]: 消息内容为空，已设置为默认值");
+            }
+
+            if (string.IsNullOrEmpty(messageTitle))
+            {
+                messageTitle = messageType == ProximityMessageType.Message ? "提示" : "警告";
+                Debug.LogWarning($"⚠️ ProximityMessageSender [{name}]: 消息标题为空，已设置为默认值: '{messageTitle}'");
+            }
+
+            if (useCustomDisplayTime && customDisplayTime <= 0f)
+            {
+                customDisplayTime = 5f;
+                Debug.LogWarning($"⚠️ ProximityMessageSender [{name}]: 自定义显示时间无效，已设置为默认值: {customDisplayTime}s");
             }
         }
 
@@ -118,11 +147,35 @@ namespace BugFixerGame
 
             if (enableDebugLog)
             {
-                Debug.Log($"📡 ProximityMessageSender [{name}]: 触发消息 - '{messageContent}'");
+                string typeText = messageType == ProximityMessageType.Message ? "消息" : "警告";
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 触发{typeText} - 标题: '{messageTitle}', 内容: '{messageContent}'");
             }
 
-            // 显示消息（使用默认显示时间）
-            InfoDisplayUI.ShowMessage(MESSAGE_TITLE, messageContent);
+            // 根据消息类型调用不同的显示方法
+            if (messageType == ProximityMessageType.Message)
+            {
+                // 显示Message类型
+                if (useCustomDisplayTime)
+                {
+                    InfoDisplayUI.ShowMessage(messageTitle, messageContent, customDisplayTime);
+                }
+                else
+                {
+                    InfoDisplayUI.ShowMessage(messageTitle, messageContent); // 使用默认时间
+                }
+            }
+            else
+            {
+                // 显示Alert类型
+                if (useCustomDisplayTime)
+                {
+                    InfoDisplayUI.ShowAlert(messageTitle, messageContent, customDisplayTime);
+                }
+                else
+                {
+                    InfoDisplayUI.ShowAlert(messageTitle, messageContent); // 使用默认时间
+                }
+            }
 
             // 触发事件
             OnMessageTriggered?.Invoke(this, playerTransform.gameObject);
@@ -197,15 +250,69 @@ namespace BugFixerGame
         }
 
         /// <summary>
+        /// 设置消息类型
+        /// </summary>
+        public void SetMessageType(ProximityMessageType type)
+        {
+            messageType = type;
+
+            if (enableDebugLog)
+            {
+                string typeText = type == ProximityMessageType.Message ? "消息" : "警告";
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 消息类型已更新为 {typeText}");
+            }
+        }
+
+        /// <summary>
+        /// 设置消息标题
+        /// </summary>
+        public void SetMessageTitle(string title)
+        {
+            messageTitle = string.IsNullOrEmpty(title) ? "提示" : title;
+
+            if (enableDebugLog)
+            {
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 消息标题已更新为 '{messageTitle}'");
+            }
+        }
+
+        /// <summary>
         /// 设置消息内容
         /// </summary>
         public void SetMessageContent(string content)
         {
-            messageContent = content;
+            messageContent = string.IsNullOrEmpty(content) ? "这是一条消息" : content;
 
             if (enableDebugLog)
             {
-                Debug.Log($"📡 ProximityMessageSender [{name}]: 消息内容已更新为 '{content}'");
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 消息内容已更新为 '{messageContent}'");
+            }
+        }
+
+        /// <summary>
+        /// 设置自定义显示时间
+        /// </summary>
+        public void SetCustomDisplayTime(float time, bool enable = true)
+        {
+            useCustomDisplayTime = enable;
+            customDisplayTime = Mathf.Max(0.1f, time);
+
+            if (enableDebugLog)
+            {
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 自定义显示时间设置为 {customDisplayTime}s，启用: {enable}");
+            }
+        }
+
+        /// <summary>
+        /// 使用默认显示时间
+        /// </summary>
+        public void UseDefaultDisplayTime()
+        {
+            useCustomDisplayTime = false;
+
+            if (enableDebugLog)
+            {
+                Debug.Log($"📡 ProximityMessageSender [{name}]: 已切换为使用默认显示时间");
             }
         }
 
@@ -218,6 +325,21 @@ namespace BugFixerGame
         /// 检查是否正在销毁
         /// </summary>
         public bool IsDestroying() => isDestroying;
+
+        /// <summary>
+        /// 获取消息类型
+        /// </summary>
+        public ProximityMessageType GetMessageType() => messageType;
+
+        /// <summary>
+        /// 获取消息标题
+        /// </summary>
+        public string GetMessageTitle() => messageTitle;
+
+        /// <summary>
+        /// 获取消息内容
+        /// </summary>
+        public string GetMessageContent() => messageContent;
 
         /// <summary>
         /// 获取当前与玩家的距离
@@ -253,8 +375,9 @@ namespace BugFixerGame
         {
             if (!showDebugGizmos) return;
 
-            // 选择颜色
-            Color gizmoColor = hasTriggered ? Color.red : Color.cyan;
+            // 根据消息类型选择颜色
+            Color baseColor = messageType == ProximityMessageType.Message ? Color.cyan : Color.yellow;
+            Color gizmoColor = hasTriggered ? Color.red : baseColor;
             Gizmos.color = gizmoColor;
 
             // 绘制触发距离球体
@@ -270,7 +393,7 @@ namespace BugFixerGame
             // 如果找到了玩家，绘制连线
             if (playerTransform != null)
             {
-                Gizmos.color = Color.yellow;
+                Gizmos.color = messageType == ProximityMessageType.Message ? Color.green : new Color(1f, 0.5f, 0f); // orange color
                 Gizmos.DrawLine(transform.position, playerTransform.position);
             }
         }
@@ -282,9 +405,16 @@ namespace BugFixerGame
         {
             if (!showDebugGizmos) return;
 
-            // 绘制中心点
+            // 绘制中心点，根据消息类型选择形状
             Gizmos.color = Color.white;
-            Gizmos.DrawWireCube(transform.position, Vector3.one * 0.5f);
+            if (messageType == ProximityMessageType.Message)
+            {
+                Gizmos.DrawWireCube(transform.position, Vector3.one * 0.5f);
+            }
+            else
+            {
+                Gizmos.DrawSphere(transform.position, 0.25f);
+            }
         }
 
         #endregion
@@ -353,15 +483,37 @@ namespace BugFixerGame
             }
         }
 
-        [ContextMenu("📊 显示状态信息")]
-        private void DebugShowStatus()
+        [ContextMenu("🔄 切换消息类型")]
+        private void DebugToggleMessageType()
         {
-            Debug.Log("=== ProximityMessageSender 状态 ===");
+            if (messageType == ProximityMessageType.Message)
+            {
+                SetMessageType(ProximityMessageType.Alert);
+            }
+            else
+            {
+                SetMessageType(ProximityMessageType.Message);
+            }
+
+            Debug.Log($"📡 消息类型已切换为: {messageType}");
+        }
+
+        [ContextMenu("📊 显示详细状态")]
+        private void DebugShowDetailedStatus()
+        {
+            Debug.Log("=== ProximityMessageSender 详细状态 ===");
             Debug.Log($"对象名称: {name}");
-            Debug.Log($"触发距离: {TRIGGER_DISTANCE}m (固定)");
+            Debug.Log($"消息类型: {messageType}");
+            Debug.Log($"消息标题: '{messageTitle}'");
             Debug.Log($"消息内容: '{messageContent}'");
+            Debug.Log($"触发距离: {TRIGGER_DISTANCE}m (固定)");
             Debug.Log($"只触发一次: {triggerOnce}");
             Debug.Log($"触发后销毁: {destroyAfterTrigger}");
+            Debug.Log($"使用自定义显示时间: {useCustomDisplayTime}");
+            if (useCustomDisplayTime)
+            {
+                Debug.Log($"自定义显示时间: {customDisplayTime}s");
+            }
             Debug.Log($"已触发: {hasTriggered}");
             Debug.Log($"正在销毁: {isDestroying}");
             Debug.Log($"玩家引用: {(playerTransform != null ? playerTransform.name : "null")}");
@@ -370,6 +522,43 @@ namespace BugFixerGame
             {
                 Debug.Log($"当前距离: {GetDistanceToPlayer():F1}m");
             }
+        }
+
+        [ContextMenu("⚡ 测试消息类型")]
+        private void DebugTestMessageType()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.Log("📡 请在运行时使用此功能");
+                return;
+            }
+
+            Debug.Log("📡 测试不同消息类型:");
+
+            // 保存当前设置
+            var originalType = messageType;
+            var originalTitle = messageTitle;
+            var originalContent = messageContent;
+
+            // 测试Message类型
+            SetMessageType(ProximityMessageType.Message);
+            SetMessageTitle("测试消息");
+            SetMessageContent("这是一条测试消息，会置顶显示并持久化");
+            InfoDisplayUI.ShowMessage(messageTitle, messageContent);
+
+            // 等待一秒后测试Alert类型
+            Invoke(nameof(TestAlertType), 1f);
+
+            // 恢复原始设置
+            messageType = originalType;
+            messageTitle = originalTitle;
+            messageContent = originalContent;
+        }
+
+        private void TestAlertType()
+        {
+            InfoDisplayUI.ShowAlert("测试警告", "这是一条测试警告消息，会临时显示");
+            Debug.Log("📡 消息类型测试完成");
         }
 
         #endregion

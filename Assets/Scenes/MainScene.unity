@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 2bd8959f5fbd3644aa33af1a155fc147, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -620,8 +620,8 @@ MonoBehaviour:
   defaultMessageTime: 5
   defaultAlertTime: 3
   bugSprite: {fileID: 21300000, guid: ca664606496cf834c9c84f8758e6e385, type: 3}
-  messageSprite: {fileID: 21300000, guid: fdc50f42056447f4d9c0e10ad11e047b, type: 3}
-  alertSprite: {fileID: 21300000, guid: 31f3e8a19d3a4974aa977c59f5634c47, type: 3}
+  messageSprite: {fileID: 21300000, guid: 31f3e8a19d3a4974aa977c59f5634c47, type: 3}
+  alertSprite: {fileID: 21300000, guid: fdc50f42056447f4d9c0e10ad11e047b, type: 3}
   enableMessagePersistence: 1
   enableDebugLog: 1
 --- !u!114 &156390624
@@ -1504,13 +1504,16 @@ MonoBehaviour:
   enableBugFixWin: 1
   gameEndDelay: 2
   enableDoorSystem: 1
-  globalDoorState: 0
+  doorDetectionDistance: 3
+  doorDetectionInterval: 0.1
   showDoorDebugInfo: 0
   gameEnded: 0
   gameEndReason: 
   registeredDoorsCount: 0
-  doorsNearPlayer: 0
+  globalDoorState: 0
   anyPlayerNearDoor: 0
+  closestDoorDistance: 3.4028235e+38
+  playerStatus: "\u672A\u627E\u5230"
   showDebugInfo: 0
 --- !u!4 &334796601
 Transform:
@@ -4925,7 +4928,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1416815346
 RectTransform:
   m_ObjectHideFlags: 0
@@ -6249,7 +6252,6 @@ MonoBehaviour:
   hudPanel: {fileID: 111144006}
   pausePanel: {fileID: 1840831866}
   gameOverPanel: {fileID: 0}
-  happyEndPanel: {fileID: 1077678568}
   badEndPanel: {fileID: 1416815345}
   cutsceneManager: {fileID: 1503050153}
   cutscenePanel: {fileID: 741624899}
@@ -6287,8 +6289,6 @@ MonoBehaviour:
   pauseSFXSlider: {fileID: 560326913}
   badEndRestartButton: {fileID: 15370464}
   badEndMenuButton: {fileID: 0}
-  happyEndRestartButton: {fileID: 379509509}
-  happyEndMenuButton: {fileID: 646169373}
   gameEndFadeTime: 1
   unlockCursorOnGameEnd: 1
   showDebugGUI: 0
