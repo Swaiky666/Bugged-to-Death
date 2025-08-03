@@ -1074,8 +1074,17 @@ MonoBehaviour:
   enableManaGameOver: 1
   enableBugFixWin: 1
   gameEndDelay: 2
+  enableDoorSystem: 1
+  doorDetectionDistance: 3
+  doorDetectionInterval: 0.1
+  showDoorDebugInfo: 0
   gameEnded: 0
   gameEndReason: 
+  registeredDoorsCount: 0
+  globalDoorState: 0
+  anyPlayerNearDoor: 0
+  closestDoorDistance: 3.4028235e+38
+  playerStatus: "\u672A\u627E\u5230"
   showDebugInfo: 0
 --- !u!4 &334796601
 Transform:
@@ -2894,7 +2903,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9054668071483261044, guid: 9812bd4262fa6be409f7421ab6b53c26, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -4014,8 +4023,23 @@ MonoBehaviour:
   hudPanel: {fileID: 111144006}
   pausePanel: {fileID: 1840831866}
   gameOverPanel: {fileID: 0}
-  happyEndPanel: {fileID: 1077678568}
   badEndPanel: {fileID: 1416815345}
+  cutsceneManager: {fileID: 0}
+  cutscenePanel: {fileID: 0}
+  animationCheckInterval: 0.1
+  enableSkipCutscene: 1
+  skipKey: 32
+  skipButton: {fileID: 0}
+  debugCutscene: 1
+  autoFindCutsceneManager: 1
+  animationTriggerName: Play
+  animationStateName: CutsceneAnimation
+  maxAnimationWaitTime: 30
+  animationTransitionTime: 0.5
+  minimumAnimationTime: 1
+  defaultAnimationTime: 5
+  forceNonLooping: 1
+  useSimpleTimeBasedDetection: 0
   crosshair: {fileID: 0}
   magicCircle: {fileID: 0}
   enableDetectionUIControl: 1
@@ -4036,10 +4060,9 @@ MonoBehaviour:
   pauseSFXSlider: {fileID: 0}
   badEndRestartButton: {fileID: 15370464}
   badEndMenuButton: {fileID: 605377737}
-  happyEndRestartButton: {fileID: 379509509}
-  happyEndMenuButton: {fileID: 646169373}
   gameEndFadeTime: 1
   unlockCursorOnGameEnd: 1
+  showDebugGUI: 0
 --- !u!1 &1840831866
 GameObject:
   m_ObjectHideFlags: 0
@@ -4763,7 +4786,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7561273939213667666, guid: be13979ff0bd2f14392567722f7251dc, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

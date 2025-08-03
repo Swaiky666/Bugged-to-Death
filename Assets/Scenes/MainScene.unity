@@ -5090,8 +5090,8 @@ MonoBehaviour:
   - category: 0
     prefab: {fileID: 6522415222091916096, guid: ea41da0df97e4db489d3f731f7c04064, type: 3}
     animationName: 
-    useManualDuration: 0
-    manualDuration: 0
+    useManualDuration: 1
+    manualDuration: 16.2
     duration: 0
     isLooping: 0
     hasAnimator: 0
@@ -5116,8 +5116,8 @@ MonoBehaviour:
   - category: 0
     prefab: {fileID: 6240756985106584645, guid: 5c430ac9d9b6e6047ad1e380cf81eeb1, type: 3}
     animationName: 
-    useManualDuration: 0
-    manualDuration: 0
+    useManualDuration: 1
+    manualDuration: 16.7
     duration: 0
     isLooping: 0
     hasAnimator: 0
@@ -5129,8 +5129,8 @@ MonoBehaviour:
   - category: 1
     prefab: {fileID: 6490590929090361942, guid: e07f574d6b8d23b469de0b6d4039f68c, type: 3}
     animationName: 
-    useManualDuration: 0
-    manualDuration: 0
+    useManualDuration: 1
+    manualDuration: 20.55
     duration: 0
     isLooping: 0
     hasAnimator: 0
@@ -5142,8 +5142,8 @@ MonoBehaviour:
   - category: 1
     prefab: {fileID: 4783382229358600199, guid: 8739af67b9b8cf64da76ef87fbf57729, type: 3}
     animationName: 
-    useManualDuration: 0
-    manualDuration: 0
+    useManualDuration: 1
+    manualDuration: 7.55
     duration: 0
     isLooping: 0
     hasAnimator: 0
@@ -5169,7 +5169,7 @@ MonoBehaviour:
     prefab: {fileID: 2208635203944298224, guid: 880848f31d413a143bebde8422d538bd, type: 3}
     animationName: 
     useManualDuration: 1
-    manualDuration: 3.775
+    manualDuration: 1.8875
     duration: 0
     isLooping: 0
     hasAnimator: 0
