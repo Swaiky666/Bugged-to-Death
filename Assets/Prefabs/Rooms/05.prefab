@@ -88,6 +88,14 @@ PrefabInstance:
       propertyPath: startWithBugActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1646709894217970145, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1646709894217970145, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -13.3
+      objectReference: {fileID: 0}
     - target: {fileID: 3849583616388103519, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_Name
       value: Room_05

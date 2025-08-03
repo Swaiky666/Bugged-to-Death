@@ -84,6 +84,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2578411994641470756, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2578411994641470756, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -13.3
+      objectReference: {fileID: 0}
     - target: {fileID: 5138919585699714945, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
       propertyPath: disableCollidersCompletely
       value: 1
