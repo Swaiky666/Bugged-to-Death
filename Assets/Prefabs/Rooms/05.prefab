@@ -42,7 +42,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 86042950902121208, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.5
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 86042950902121208, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_LocalPosition.y
@@ -50,7 +50,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 86042950902121208, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 86042950902121208, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_LocalRotation.w
@@ -80,12 +80,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 451211682239942651, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
+      propertyPath: bugType
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 451211682239942651, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
+      propertyPath: startWithBugActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3849583616388103519, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
       propertyPath: m_Name
       value: Room_05
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 8592331459519610812, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
+    - {fileID: 5950084853477473724, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}

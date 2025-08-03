@@ -40,9 +40,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 7839339341239415901}
     m_Modifications:
+    - target: {fileID: 3673377167113427248, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
+      propertyPath: m_LocalScale.y
+      value: -0.032015156
+      objectReference: {fileID: 0}
+    - target: {fileID: 4514016387446910931, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
+      propertyPath: startWithBugActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5526347381462133453, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.5
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 5526347381462133453, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
       propertyPath: m_LocalPosition.y
@@ -50,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5526347381462133453, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 5526347381462133453, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
       propertyPath: m_LocalRotation.w
@@ -85,7 +93,8 @@ PrefabInstance:
       value: Room_02
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 3814737895843906968, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}

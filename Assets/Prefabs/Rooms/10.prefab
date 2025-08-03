@@ -44,9 +44,13 @@ PrefabInstance:
       propertyPath: m_Name
       value: Room_10
       objectReference: {fileID: 0}
+    - target: {fileID: 7270222917585586492, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
+      propertyPath: buggyMaterial
+      value: 
+      objectReference: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
     - target: {fileID: 8725726969874865010, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.5
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 8725726969874865010, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
       propertyPath: m_LocalPosition.y
@@ -54,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8725726969874865010, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 8725726969874865010, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
       propertyPath: m_LocalRotation.w

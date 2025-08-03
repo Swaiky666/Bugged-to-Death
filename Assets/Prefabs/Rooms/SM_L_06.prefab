@@ -748,7 +748,7 @@ MonoBehaviour:
   isOpen: 0
   animationDuration: 1
   closedRotation: {x: 0, y: 0, z: 0}
-  openRotation: {x: 0, y: 90, z: 0}
+  openRotation: {x: 0, y: 75, z: 0}
   animationCurve:
     serializedVersion: 2
     m_Curve:

@@ -40,9 +40,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 7839339341239415901}
     m_Modifications:
+    - target: {fileID: 3172487826615768708, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: startWithBugActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6558787290756264187, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -5.945
+      objectReference: {fileID: 0}
     - target: {fileID: 7573358741663553967, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.5
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 7573358741663553967, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_LocalPosition.y
@@ -50,7 +58,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7573358741663553967, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 7573358741663553967, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_LocalRotation.w
@@ -83,6 +91,14 @@ PrefabInstance:
     - target: {fileID: 7828806206725251016, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_Name
       value: Room_04
+      objectReference: {fileID: 0}
+    - target: {fileID: 7976527632824567313, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: buggyMaterial
+      value: 
+      objectReference: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+    - target: {fileID: 7976527632824567313, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: startWithBugActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
