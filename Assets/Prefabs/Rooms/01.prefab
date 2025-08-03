@@ -1,5 +1,165 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &41408641200612236
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3257083124711312633}
+  - component: {fileID: 4882982173308202253}
+  m_Layer: 0
+  m_Name: ProximityMessageSender
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3257083124711312633
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 41408641200612236}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -10.98, y: 0, z: 0.59}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7894152704629577970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4882982173308202253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 41408641200612236}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4abf8707ab04d4fa033889385e81ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageType: 0
+  messageTitle: "\u63D0\u793A"
+  messageContent: Let me go out and take a look first. ( WASD controls movement )
+  useCustomDisplayTime: 1
+  customDisplayTime: 15
+  triggerOnce: 0
+  destroyAfterTrigger: 1
+  showDebugGizmos: 1
+  enableDebugLog: 1
+--- !u!1 &2901177927561446934
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 424300287116945763}
+  - component: {fileID: 7715729865961130135}
+  m_Layer: 0
+  m_Name: ProximityMessageSender (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &424300287116945763
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2901177927561446934}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.501, y: 0, z: -4.264}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7894152704629577970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7715729865961130135
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2901177927561446934}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4abf8707ab04d4fa033889385e81ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageType: 0
+  messageTitle: "\u63D0\u793A"
+  messageContent: ...( Use the scroll wheel to scroll through the console )
+  useCustomDisplayTime: 1
+  customDisplayTime: 15
+  triggerOnce: 0
+  destroyAfterTrigger: 1
+  showDebugGizmos: 1
+  enableDebugLog: 1
+--- !u!1 &5098762388031674810
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7737771610114012879}
+  - component: {fileID: 401590001038350139}
+  m_Layer: 0
+  m_Name: ProximityMessageSender (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7737771610114012879
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5098762388031674810}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -12.97, y: 0, z: -5.15}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7894152704629577970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &401590001038350139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5098762388031674810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4abf8707ab04d4fa033889385e81ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageType: 0
+  messageTitle: "\u63D0\u793A"
+  messageContent: Fixing too many things that are not bugs can also cause the game
+    to crash, be careful ( Fixed bug with left mouse button )
+  useCustomDisplayTime: 1
+  customDisplayTime: 15
+  triggerOnce: 0
+  destroyAfterTrigger: 1
+  showDebugGizmos: 1
+  enableDebugLog: 1
 --- !u!1 &8230448316951640689
 GameObject:
   m_ObjectHideFlags: 0
@@ -54,7 +214,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4602012838793260461, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 4602012838793260461, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
       propertyPath: m_LocalRotation.w
@@ -84,9 +244,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6491723536741775142, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
+      propertyPath: m_TagString
+      value: Player
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4602012838793260461, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 3257083124711312633}
+    - targetCorrespondingSourceObject: {fileID: 4602012838793260461, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 7737771610114012879}
+    - targetCorrespondingSourceObject: {fileID: 4602012838793260461, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
+      insertIndex: 2
+      addedObject: {fileID: 424300287116945763}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
 --- !u!4 &7894152704629577970 stripped
