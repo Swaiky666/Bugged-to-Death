@@ -5169,7 +5169,7 @@ MonoBehaviour:
     prefab: {fileID: 2208635203944298224, guid: 880848f31d413a143bebde8422d538bd, type: 3}
     animationName: 
     useManualDuration: 1
-    manualDuration: 3.775
+    manualDuration: 1.8875
     duration: 0
     isLooping: 0
     hasAnimator: 0
