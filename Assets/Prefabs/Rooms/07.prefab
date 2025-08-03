@@ -80,6 +80,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6145779254690578681, guid: 37b956eeadc0c4c4eb4a11301f49be94, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6145779254690578681, guid: 37b956eeadc0c4c4eb4a11301f49be94, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -13.3
+      objectReference: {fileID: 0}
     - target: {fileID: 7196092834006521575, guid: 37b956eeadc0c4c4eb4a11301f49be94, type: 3}
       propertyPath: m_Name
       value: Room_07

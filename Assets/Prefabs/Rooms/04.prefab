@@ -44,6 +44,14 @@ PrefabInstance:
       propertyPath: startWithBugActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 4919733347966194372, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4
+      objectReference: {fileID: 0}
+    - target: {fileID: 4919733347966194372, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -13.3
+      objectReference: {fileID: 0}
     - target: {fileID: 6558787290756264187, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
       propertyPath: m_LocalPosition.x
       value: -5.945

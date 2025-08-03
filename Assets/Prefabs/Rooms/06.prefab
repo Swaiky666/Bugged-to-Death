@@ -1321,6 +1321,10 @@ PrefabInstance:
       propertyPath: startWithBugActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1513669756211383934, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4
+      objectReference: {fileID: 0}
     - target: {fileID: 1780503699135714906, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
       propertyPath: m_LocalPosition.x
       value: -7.5
