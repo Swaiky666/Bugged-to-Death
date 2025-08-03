@@ -25,6 +25,11 @@ namespace BugFixerGame
         [Header("游戏结束控制")]
         [SerializeField] private bool disableControlsOnGameEnd = true;  // 游戏结束时是否禁用控制
 
+        [Header("房间系统集成")]
+        [SerializeField] private bool autoRegisterToRoomSystem = true;  // 是否自动注册到房间系统
+        [SerializeField] private string roomSystemObjectName = "RoomSystem(Clone)";  // 房间系统对象名称
+        [SerializeField] private Transform assignedRoomSystem = null;  // Inspector中显示当前连接的房间系统
+
         private CharacterController controller;
         private Camera cam;
         private CameraController cameraController;
@@ -32,6 +37,9 @@ namespace BugFixerGame
         private bool isGrounded;
         private GameObject currentDetectedObject;  // 改为检测所有物体
         private BugObject currentDetectedBugObject; // 保留对BugObject的引用
+
+        // 房间系统引用
+        private RoomSystem connectedRoomSystem = null;
 
         // 长按相关变量
         private bool isHolding = false;
@@ -75,7 +83,15 @@ namespace BugFixerGame
 
             cameraController = GetComponentInChildren<CameraController>();
 
+            // 新增：自动注册到房间系统
+            if (autoRegisterToRoomSystem)
+            {
+                RegisterToRoomSystem();
+            }
+
             Debug.Log($"🎮 Player Awake完成 - 相机: {(cam != null ? cam.name : "未找到")}, 控制器: {(cameraController != null ? "有效" : "无效")}");
+
+
         }
 
         private void Start()
@@ -83,6 +99,10 @@ namespace BugFixerGame
             // 确保相机引用在游戏开始时是有效的
             ValidateCameraReference();
             Debug.Log($"🎮 Player Start: 相机引用状态 - {(cam != null ? $"有效 ({cam.name})" : "无效")}");
+
+            RegisterToGameManager();
+            RegisterToRoomSystem();
+
         }
 
         private void OnEnable()
@@ -137,6 +157,8 @@ namespace BugFixerGame
             // 清理引用，避免内存泄漏
             cam = null;
             cameraController = null;
+            connectedRoomSystem = null;
+            assignedRoomSystem = null;
 
             // 停止所有协程
             if (holdCoroutine != null)
@@ -146,6 +168,90 @@ namespace BugFixerGame
             }
 
             Debug.Log("🧹 Player: OnDestroy - 清理完成");
+        }
+
+        #endregion
+
+        #region 房间系统集成
+
+
+
+        private void RegisterToGameManager()
+        {
+            GameManager gameManager = FindObjectOfType<GameManager>();
+            if (gameManager != null)
+            {
+                gameManager.RegisterPlayer(transform);
+                Debug.Log($"✅ Player {gameObject.name} 已注册到 GameManager");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ Player 找不到 GameManager，无法注册");
+            }
+        }
+
+
+        /// <summary>
+        /// 注册到房间系统
+        /// </summary>
+        private void RegisterToRoomSystem()
+        {
+            RoomSystem roomSystem = FindObjectOfType<RoomSystem>();
+            if (roomSystem != null)
+            {
+                roomSystem.SetPlayer(transform);
+                Debug.Log($"✅ Player {gameObject.name} 已注册到 RoomSystem");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ Player 找不到 RoomSystem，无法注册");
+            }
+        }
+
+
+        /// <summary>
+        /// 手动设置房间系统引用
+        /// </summary>
+        public void SetRoomSystem(RoomSystem roomSystem)
+        {
+            if (roomSystem != null)
+            {
+                connectedRoomSystem = roomSystem;
+                assignedRoomSystem = roomSystem.transform;
+                Debug.Log($"🔗 手动设置房间系统引用: {roomSystem.name}");
+            }
+            else
+            {
+                connectedRoomSystem = null;
+                assignedRoomSystem = null;
+                Debug.Log("🔗 清除房间系统引用");
+            }
+        }
+
+        /// <summary>
+        /// 获取连接的房间系统
+        /// </summary>
+        public RoomSystem GetConnectedRoomSystem()
+        {
+            return connectedRoomSystem;
+        }
+
+        /// <summary>
+        /// 检查是否连接到房间系统
+        /// </summary>
+        public bool IsConnectedToRoomSystem()
+        {
+            return connectedRoomSystem != null && connectedRoomSystem.gameObject != null;
+        }
+
+        /// <summary>
+        /// 强制重新注册到房间系统
+        /// </summary>
+        public void ForceRegisterToRoomSystem()
+        {
+            connectedRoomSystem = null;
+            assignedRoomSystem = null;
+            RegisterToRoomSystem();
         }
 
         #endregion
@@ -173,6 +279,26 @@ namespace BugFixerGame
             Debug.Log($"🔄 强制重新获取相机结果: {(result ? "成功" : "失败")}");
         }
 
+        [ContextMenu("🔗 强制重新注册房间系统")]
+        private void DebugForceRegisterRoomSystem()
+        {
+            ForceRegisterToRoomSystem();
+        }
+
+        [ContextMenu("🏠 显示房间系统连接状态")]
+        private void DebugShowRoomSystemConnection()
+        {
+            Debug.Log("=== 房间系统连接状态 ===");
+            Debug.Log($"自动注册: {autoRegisterToRoomSystem}");
+            Debug.Log($"目标对象名: {roomSystemObjectName}");
+            Debug.Log($"连接状态: {(IsConnectedToRoomSystem() ? "已连接" : "未连接")}");
+            if (connectedRoomSystem != null)
+            {
+                Debug.Log($"连接的房间系统: {connectedRoomSystem.name}");
+                Debug.Log($"房间系统初始化状态: {connectedRoomSystem.transform.GetComponent<RoomSystem>()}");
+            }
+        }
+
         [ContextMenu("🎮 显示控制状态")]
         private void DebugShowControlState()
         {
@@ -182,6 +308,7 @@ namespace BugFixerGame
             Debug.Log($"正在长按: {isHolding}");
             Debug.Log($"相机引用: {(cam != null ? cam.name : "无效")}");
             Debug.Log($"相机控制器: {(cameraController != null ? "有效" : "无效")}");
+            Debug.Log($"房间系统连接: {(IsConnectedToRoomSystem() ? "已连接" : "未连接")}");
 
             if (GameManager.Instance != null)
             {
@@ -767,7 +894,7 @@ namespace BugFixerGame
         {
             if (!showDebugGUI) return;
 
-            GUILayout.BeginArea(new Rect(10, Screen.height - 350, 400, 340));
+            GUILayout.BeginArea(new Rect(10, Screen.height - 400, 450, 390));
             GUILayout.Label("=== Player Debug ===");
 
             GUILayout.Label($"地面状态: {(isGrounded ? "着地" : "空中")}");
@@ -775,6 +902,13 @@ namespace BugFixerGame
             GUILayout.Label($"控制启用: {(controlsEnabled ? "是" : "否")}");
             GUILayout.Label($"相机引用: {(cam != null ? cam.name : "无效")}");
             GUILayout.Label($"相机控制器: {(cameraController != null ? "有效" : "无效")}");
+
+            // 房间系统连接状态
+            GUILayout.Label($"房间系统连接: {(IsConnectedToRoomSystem() ? "已连接" : "未连接")}");
+            if (connectedRoomSystem != null)
+            {
+                GUILayout.Label($"连接的系统: {connectedRoomSystem.name}");
+            }
 
             if (GameManager.Instance != null)
             {
@@ -854,6 +988,10 @@ namespace BugFixerGame
                 SetControlsEnabled(true);
                 disableControlsOnGameEnd = true;
                 UpdateControlsState();
+            }
+            if (GUILayout.Button("重新注册房间系统"))
+            {
+                ForceRegisterToRoomSystem();
             }
             GUILayout.EndHorizontal();
 

@@ -2,42 +2,36 @@
 using BugFixerGame;
 
 /// <summary>
-/// 门控制脚本 - 检测玩家距离并控制门的开关
-/// 自动注册到GameManager进行全局门状态管理
+/// 门控制脚本 - 旋转式开门动画
+/// 只负责注册到GameManager和执行开关门动画，距离检测由GameManager统一处理
 /// </summary>
 public class Door : MonoBehaviour
 {
-    [Header("距离检测设置")]
-    [SerializeField] private float detectionDistance = 3f;          // 玩家检测距离
-    [SerializeField] private float detectionInterval = 0.1f;        // 检测间隔（秒）
-
     [Header("门状态设置")]
     [SerializeField] private bool isOpen = false;                   // 当前门是否打开
     [SerializeField] private float animationDuration = 1f;          // 开关门动画时长
 
-    [Header("门动画设置")]
-    [SerializeField] private Vector3 closedPosition = Vector3.zero; // 关门位置（相对于初始位置）
-    [SerializeField] private Vector3 openPosition = new Vector3(0, 3f, 0); // 开门位置（相对于初始位置）
+    [Header("门旋转设置")]
+    [SerializeField] private Vector3 closedRotation = Vector3.zero; // 关门旋转（相对于初始旋转）
+    [SerializeField] private Vector3 openRotation = new Vector3(0, 90f, 0); // 开门旋转（相对于初始旋转）
     [SerializeField] private AnimationCurve animationCurve = AnimationCurve.EaseInOut(0, 0, 1, 1); // 动画曲线
 
     [Header("调试信息")]
     [SerializeField] private bool showDebugInfo = false;           // 显示调试信息
-    [SerializeField, ReadOnly] private float currentPlayerDistance = float.MaxValue; // 当前玩家距离
-    [SerializeField, ReadOnly] private bool isPlayerNearby = false; // 玩家是否在附近
+
+    // 运行时状态显示（只读）
+    [Header("运行时状态（只读）")]
+    [SerializeField, ReadOnly] private int doorId;
+    [SerializeField, ReadOnly] private bool isAnimating = false;
+    [SerializeField, ReadOnly] private bool isRegistered = false;   // 是否已注册到GameManager
 
     // 组件引用
-    private Transform playerTransform;
-    private Vector3 initialPosition;
-    private bool isAnimating = false;
+    private Quaternion initialRotation;
     private float animationStartTime;
-    private Vector3 animationStartPos;
-    private Vector3 animationTargetPos;
-
-    // 检测计时器
-    private float lastDetectionTime;
+    private Quaternion animationStartRot;
+    private Quaternion animationTargetRot;
 
     // 门ID（用于调试）
-    [SerializeField, ReadOnly] private int doorId;
     private static int nextDoorId = 1;
 
     #region Unity生命周期
@@ -47,8 +41,8 @@ public class Door : MonoBehaviour
         // 分配门ID
         doorId = nextDoorId++;
 
-        // 记录初始位置
-        initialPosition = transform.position;
+        // 记录初始旋转
+        initialRotation = transform.rotation;
 
         // 设置门的名称
         if (string.IsNullOrEmpty(gameObject.name) || gameObject.name.StartsWith("GameObject"))
@@ -59,28 +53,18 @@ public class Door : MonoBehaviour
 
     private void Start()
     {
-        // 查找玩家
-        FindPlayer();
-
         // 注册到GameManager
         RegisterToGameManager();
 
-        // 设置初始位置
-        SetDoorPosition(isOpen);
+        // 设置初始旋转
+        SetDoorRotation(isOpen);
 
-        Debug.Log($"🚪 门 {gameObject.name} 初始化完成，检测距离: {detectionDistance}m");
+        Debug.Log($"🚪 门 {gameObject.name} 初始化完成");
     }
 
     private void Update()
     {
-        // 定期检测玩家距离
-        if (Time.time - lastDetectionTime >= detectionInterval)
-        {
-            CheckPlayerDistance();
-            lastDetectionTime = Time.time;
-        }
-
-        // 更新门动画
+        // 只需要更新门动画
         UpdateDoorAnimation();
     }
 
@@ -88,68 +72,6 @@ public class Door : MonoBehaviour
     {
         // 从GameManager注销
         UnregisterFromGameManager();
-    }
-
-    #endregion
-
-    #region 玩家检测
-
-    /// <summary>
-    /// 查找玩家对象
-    /// </summary>
-    private void FindPlayer()
-    {
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-        {
-            playerTransform = playerObj.transform;
-            Debug.Log($"🎮 门 {gameObject.name} 找到玩家: {playerObj.name}");
-        }
-        else
-        {
-            Debug.LogWarning($"⚠️ 门 {gameObject.name} 找不到标签为'Player'的玩家对象");
-        }
-    }
-
-    /// <summary>
-    /// 检测玩家距离
-    /// </summary>
-    private void CheckPlayerDistance()
-    {
-        if (playerTransform == null)
-        {
-            // 尝试重新查找玩家
-            FindPlayer();
-            return;
-        }
-
-        // 计算距离
-        currentPlayerDistance = Vector3.Distance(transform.position, playerTransform.position);
-        bool wasNearby = isPlayerNearby;
-        isPlayerNearby = currentPlayerDistance <= detectionDistance;
-
-        // 检测状态改变
-        if (isPlayerNearby != wasNearby)
-        {
-            OnPlayerProximityChanged(isPlayerNearby);
-        }
-    }
-
-    /// <summary>
-    /// 玩家接近状态改变时调用
-    /// </summary>
-    private void OnPlayerProximityChanged(bool playerNearby)
-    {
-        if (showDebugInfo)
-        {
-            Debug.Log($"🚪 门 {gameObject.name}: 玩家{(playerNearby ? "进入" : "离开")}检测范围 (距离: {currentPlayerDistance:F2}m)");
-        }
-
-        // 通知GameManager更新全局门状态
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.UpdateGlobalDoorState(playerNearby);
-        }
     }
 
     #endregion
@@ -171,7 +93,7 @@ public class Door : MonoBehaviour
         }
         else
         {
-            SetDoorPosition(open);
+            SetDoorRotation(open);
         }
 
         if (showDebugInfo)
@@ -181,12 +103,12 @@ public class Door : MonoBehaviour
     }
 
     /// <summary>
-    /// 立即设置门的位置
+    /// 立即设置门的旋转
     /// </summary>
-    private void SetDoorPosition(bool open)
+    private void SetDoorRotation(bool open)
     {
-        Vector3 targetPos = open ? (initialPosition + openPosition) : (initialPosition + closedPosition);
-        transform.position = targetPos;
+        Vector3 targetEuler = open ? (initialRotation.eulerAngles + openRotation) : (initialRotation.eulerAngles + closedRotation);
+        transform.rotation = Quaternion.Euler(targetEuler);
         isAnimating = false;
     }
 
@@ -196,13 +118,16 @@ public class Door : MonoBehaviour
     private void StartDoorAnimation(bool open)
     {
         animationStartTime = Time.time;
-        animationStartPos = transform.position;
-        animationTargetPos = open ? (initialPosition + openPosition) : (initialPosition + closedPosition);
+        animationStartRot = transform.rotation;
+
+        Vector3 targetEuler = open ? (initialRotation.eulerAngles + openRotation) : (initialRotation.eulerAngles + closedRotation);
+        animationTargetRot = Quaternion.Euler(targetEuler);
+
         isAnimating = true;
 
         if (showDebugInfo)
         {
-            Debug.Log($"🎬 门 {gameObject.name}: 开始动画 {animationStartPos} → {animationTargetPos}");
+            Debug.Log($"🎬 门 {gameObject.name}: 开始旋转动画 {animationStartRot.eulerAngles} → {animationTargetRot.eulerAngles}");
         }
     }
 
@@ -219,19 +144,19 @@ public class Door : MonoBehaviour
         if (progress >= 1f)
         {
             // 动画完成
-            transform.position = animationTargetPos;
+            transform.rotation = animationTargetRot;
             isAnimating = false;
 
             if (showDebugInfo)
             {
-                Debug.Log($"🎬 门 {gameObject.name}: 动画完成，最终位置: {transform.position}");
+                Debug.Log($"🎬 门 {gameObject.name}: 旋转动画完成，最终角度: {transform.rotation.eulerAngles}");
             }
         }
         else
         {
-            // 应用动画曲线
+            // 应用动画曲线进行平滑旋转
             float curveValue = animationCurve.Evaluate(progress);
-            transform.position = Vector3.Lerp(animationStartPos, animationTargetPos, curveValue);
+            transform.rotation = Quaternion.Slerp(animationStartRot, animationTargetRot, curveValue);
         }
     }
 
@@ -249,11 +174,13 @@ public class Door : MonoBehaviour
         if (gameManager != null)
         {
             gameManager.RegisterDoor(this);
+            isRegistered = true;
             Debug.Log($"✅ 门 {gameObject.name} 已注册到 GameManager");
         }
         else
         {
             Debug.LogWarning($"⚠️ 门 {gameObject.name} 找不到 GameManager，无法注册");
+            isRegistered = false;
         }
     }
 
@@ -262,9 +189,10 @@ public class Door : MonoBehaviour
     /// </summary>
     private void UnregisterFromGameManager()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.Instance != null && isRegistered)
         {
             GameManager.Instance.UnregisterDoor(this);
+            isRegistered = false;
             Debug.Log($"❌ 门 {gameObject.name} 已从 GameManager 注销");
         }
     }
@@ -305,30 +233,6 @@ public class Door : MonoBehaviour
     public bool IsOpen() => isOpen;
 
     /// <summary>
-    /// 获取玩家是否在附近
-    /// </summary>
-    public bool IsPlayerNearby() => isPlayerNearby;
-
-    /// <summary>
-    /// 获取当前玩家距离
-    /// </summary>
-    public float GetPlayerDistance() => currentPlayerDistance;
-
-    /// <summary>
-    /// 获取检测距离
-    /// </summary>
-    public float GetDetectionDistance() => detectionDistance;
-
-    /// <summary>
-    /// 设置检测距离
-    /// </summary>
-    public void SetDetectionDistance(float distance)
-    {
-        detectionDistance = Mathf.Max(0.1f, distance);
-        Debug.Log($"🔧 门 {gameObject.name}: 检测距离设置为 {detectionDistance}m");
-    }
-
-    /// <summary>
     /// 获取门ID
     /// </summary>
     public int GetDoorId() => doorId;
@@ -338,6 +242,50 @@ public class Door : MonoBehaviour
     /// </summary>
     public bool IsAnimating() => isAnimating;
 
+    /// <summary>
+    /// 是否已注册到GameManager
+    /// </summary>
+    public bool IsRegistered() => isRegistered;
+
+    /// <summary>
+    /// 获取门的位置（供GameManager距离计算使用）
+    /// </summary>
+    public Vector3 GetPosition() => transform.position;
+
+    /// <summary>
+    /// 设置开门和关门的旋转角度
+    /// </summary>
+    public void SetRotationAngles(Vector3 closedRot, Vector3 openRot)
+    {
+        closedRotation = closedRot;
+        openRotation = openRot;
+
+        Debug.Log($"🔧 门 {gameObject.name}: 旋转角度设置 - 关门: {closedRot}, 开门: {openRot}");
+
+        // 如果不在动画中，立即应用当前状态的旋转
+        if (!isAnimating)
+        {
+            SetDoorRotation(isOpen);
+        }
+    }
+
+    /// <summary>
+    /// 获取当前旋转相对于初始旋转的偏移
+    /// </summary>
+    public Vector3 GetCurrentRotationOffset()
+    {
+        return (transform.rotation * Quaternion.Inverse(initialRotation)).eulerAngles;
+    }
+
+    /// <summary>
+    /// 设置动画时长
+    /// </summary>
+    public void SetAnimationDuration(float duration)
+    {
+        animationDuration = Mathf.Max(0.1f, duration);
+        Debug.Log($"🔧 门 {gameObject.name}: 动画时长设置为 {animationDuration}秒");
+    }
+
     #endregion
 
     #region 调试功能
@@ -346,47 +294,78 @@ public class Door : MonoBehaviour
     {
         if (!showDebugInfo) return;
 
-        // 绘制检测范围
-        Gizmos.color = isPlayerNearby ? Color.green : Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, detectionDistance);
+        // 绘制门的旋转中心点
+        Gizmos.color = isRegistered ? Color.green : Color.red;
+        Gizmos.DrawWireCube(transform.position, Vector3.one * 0.3f);
 
-        // 绘制门的开关位置
-        Vector3 basePos = Application.isPlaying ? initialPosition : transform.position;
+        // 绘制开门方向指示器
+        Vector3 forwardClosed = transform.position + (Quaternion.Euler(initialRotation.eulerAngles + closedRotation) * Vector3.forward * 1.5f);
+        Vector3 forwardOpen = transform.position + (Quaternion.Euler(initialRotation.eulerAngles + openRotation) * Vector3.forward * 1.5f);
 
-        // 关门位置
+        // 关门方向（红色）
         Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(basePos + closedPosition, Vector3.one * 0.5f);
+        Gizmos.DrawLine(transform.position, forwardClosed);
+        Gizmos.DrawWireCube(forwardClosed, Vector3.one * 0.1f);
 
-        // 开门位置
+        // 开门方向（绿色）
         Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(basePos + openPosition, Vector3.one * 0.5f);
+        Gizmos.DrawLine(transform.position, forwardOpen);
+        Gizmos.DrawWireCube(forwardOpen, Vector3.one * 0.1f);
 
-        // 当前位置
+        // 当前门朝向
         Gizmos.color = isOpen ? Color.green : Color.red;
-        Gizmos.DrawCube(transform.position, Vector3.one * 0.3f);
+        Vector3 currentForward = transform.position + transform.forward * 1.2f;
+        Gizmos.DrawLine(transform.position, currentForward);
 
-        // 玩家连线
-        if (playerTransform != null)
+        // 绘制旋转扇形区域
+        Gizmos.color = new Color(1f, 1f, 0f, 0.3f);
+        DrawRotationArc();
+    }
+
+    private void DrawRotationArc()
+    {
+        // 绘制从关门到开门的弧形区域
+        float closedAngle = (initialRotation.eulerAngles + closedRotation).y;
+        float openAngle = (initialRotation.eulerAngles + openRotation).y;
+
+        // 确保角度在0-360范围内
+        closedAngle = closedAngle % 360f;
+        openAngle = openAngle % 360f;
+
+        float arcAngle = Mathf.DeltaAngle(closedAngle, openAngle);
+        int segments = 20;
+        float angleStep = arcAngle / segments;
+
+        Vector3 center = transform.position;
+        float radius = 1.0f;
+
+        for (int i = 0; i < segments; i++)
         {
-            Gizmos.color = isPlayerNearby ? Color.green : Color.gray;
-            Gizmos.DrawLine(transform.position, playerTransform.position);
+            float angle1 = closedAngle + angleStep * i;
+            float angle2 = closedAngle + angleStep * (i + 1);
+
+            Vector3 point1 = center + Quaternion.Euler(0, angle1, 0) * Vector3.forward * radius;
+            Vector3 point2 = center + Quaternion.Euler(0, angle2, 0) * Vector3.forward * radius;
+
+            Gizmos.DrawLine(point1, point2);
+            if (i == 0) Gizmos.DrawLine(center, point1);
+            if (i == segments - 1) Gizmos.DrawLine(center, point2);
         }
     }
 
     private void OnDrawGizmosSelected()
     {
-        // 绘制动画路径
-        Vector3 basePos = Application.isPlaying ? initialPosition : transform.position;
-        Vector3 closedPos = basePos + closedPosition;
-        Vector3 openPos = basePos + openPosition;
-
-        Gizmos.color = Color.white;
-        Gizmos.DrawLine(closedPos, openPos);
-
-        // 绘制标签
+        // 绘制详细的旋转信息
 #if UNITY_EDITOR
-        UnityEditor.Handles.Label(transform.position + Vector3.up * 2f,
-            $"Door {doorId}\n距离: {currentPlayerDistance:F2}m\n状态: {(isOpen ? "开启" : "关闭")}\n玩家附近: {(isPlayerNearby ? "是" : "否")}");
+        Vector3 labelPos = transform.position + Vector3.up * 2f;
+        string infoText = $"Door {doorId}\n" +
+                         $"状态: {(isOpen ? "开启" : "关闭")}\n" +
+                         $"已注册: {(isRegistered ? "是" : "否")}\n" +
+                         $"正在动画: {(isAnimating ? "是" : "否")}\n" +
+                         $"当前角度: {transform.rotation.eulerAngles.y:F1}°\n" +
+                         $"目标角度: {(isOpen ? openRotation.y : closedRotation.y):F1}°";
+
+        UnityEditor.Handles.Label(labelPos, infoText);
 #endif
     }
 
@@ -408,12 +387,6 @@ public class Door : MonoBehaviour
         }
     }
 
-    [ContextMenu("强制查找玩家")]
-    private void ForceeFindPlayer()
-    {
-        FindPlayer();
-    }
-
     [ContextMenu("重新注册到GameManager")]
     private void ReregisterToGameManager()
     {
@@ -430,14 +403,74 @@ public class Door : MonoBehaviour
         Debug.Log($"=== 门 {gameObject.name} 信息 ===");
         Debug.Log($"门ID: {doorId}");
         Debug.Log($"当前状态: {(isOpen ? "开启" : "关闭")}");
-        Debug.Log($"玩家距离: {currentPlayerDistance:F2}m");
-        Debug.Log($"检测距离: {detectionDistance}m");
-        Debug.Log($"玩家在附近: {(isPlayerNearby ? "是" : "否")}");
+        Debug.Log($"已注册: {(isRegistered ? "是" : "否")}");
         Debug.Log($"正在动画: {(isAnimating ? "是" : "否")}");
-        Debug.Log($"初始位置: {initialPosition}");
-        Debug.Log($"当前位置: {transform.position}");
-        Debug.Log($"关门位置: {initialPosition + closedPosition}");
-        Debug.Log($"开门位置: {initialPosition + openPosition}");
+        Debug.Log($"位置: {transform.position}");
+        Debug.Log($"初始旋转: {initialRotation.eulerAngles}");
+        Debug.Log($"当前旋转: {transform.rotation.eulerAngles}");
+        Debug.Log($"关门旋转: {initialRotation.eulerAngles + closedRotation}");
+        Debug.Log($"开门旋转: {initialRotation.eulerAngles + openRotation}");
+        Debug.Log($"动画时长: {animationDuration}秒");
+    }
+
+    [ContextMenu("重置到初始旋转")]
+    private void ResetToInitialRotation()
+    {
+        if (Application.isPlaying)
+        {
+            transform.rotation = initialRotation;
+            isAnimating = false;
+            isOpen = false;
+            Debug.Log($"🔄 门 {gameObject.name}: 已重置到初始旋转");
+        }
+    }
+
+    [ContextMenu("设置为标准门（0°→90°）")]
+    private void SetStandardDoorRotation()
+    {
+        closedRotation = Vector3.zero;
+        openRotation = new Vector3(0, 90f, 0);
+
+        if (Application.isPlaying && !isAnimating)
+        {
+            SetDoorRotation(isOpen);
+        }
+
+        Debug.Log($"🚪 门 {gameObject.name}: 设置为标准旋转 (0° → 90°)");
+    }
+
+    [ContextMenu("设置为反向门（0°→-90°）")]
+    private void SetReverseDoorRotation()
+    {
+        closedRotation = Vector3.zero;
+        openRotation = new Vector3(0, -90f, 0);
+
+        if (Application.isPlaying && !isAnimating)
+        {
+            SetDoorRotation(isOpen);
+        }
+
+        Debug.Log($"🚪 门 {gameObject.name}: 设置为反向旋转 (0° → -90°)");
+    }
+
+    [ContextMenu("测试快速开关门")]
+    private void TestQuickToggle()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.Log("🧪 测试快速开关门动画");
+            SetDoorState(!isOpen, true);
+        }
+    }
+
+    [ContextMenu("测试无动画切换")]
+    private void TestInstantToggle()
+    {
+        if (Application.isPlaying)
+        {
+            Debug.Log("🧪 测试无动画状态切换");
+            SetDoorState(!isOpen, false);
+        }
     }
 
     #endregion

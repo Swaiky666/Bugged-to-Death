@@ -11,9 +11,15 @@ public class RoomSystem : MonoBehaviour
     public float roomSpacing = 20f;
     public int visibleRoomCount = 10;
     public int playerCenterPosition = 4; // 玩家在可见房间中的目标位置
+    public Vector3 initialRoomCenter = Vector3.zero; // 初始房间中心位置
 
     [Header("检测设置")]
     public float detectionInterval = 0.1f; // 检测间隔（秒）
+
+    [Header("玩家引用管理")]
+    [SerializeField] private Transform assignedPlayer = null; // 显示当前分配的玩家
+    [SerializeField] private float maxWaitTimeForPlayer = 10f; // 等待玩家注册的最大时间（秒）
+    [SerializeField] private bool enablePlayerWaitingLog = true; // 是否启用等待玩家的日志
 
     [Header("Debug绘制设置")]
     public Vector3 roomSize = new Vector3(15f, 10f, 15f);
@@ -39,12 +45,18 @@ public class RoomSystem : MonoBehaviour
     [SerializeField] private bool enableDebugLog = true;
 
     private Transform player;
-    private bool isInitialized = false;
+    private bool roomsCreated = false; // 房间是否已创建
+    private bool playerRegistered = false; // 玩家是否已注册
+    private bool isFullyInitialized = false; // 是否完全初始化完成
     private int lastProcessedSequence = int.MinValue;
     private float lastDetectionTime = 0f;
+    private float roomCreationTime = 0f; // 房间创建完成的时间
 
     // 事件
     public static event System.Action OnAllBugsFixed; // 所有bug修复完成事件
+    public static event System.Action OnRoomsCreated; // 房间创建完成事件
+    public static event System.Action OnPlayerRegistered; // 玩家注册完成事件
+    public static event System.Action OnSystemFullyInitialized; // 系统完全初始化完成事件
 
     [System.Serializable]
     public class RoomInstance
@@ -171,6 +183,159 @@ public class RoomSystem : MonoBehaviour
         }
     }
 
+    #region 玩家引用管理
+
+    /// <summary>
+    /// 供Player调用的设置玩家引用方法（这是玩家主动注册的入口）
+    /// </summary>
+    public void SetPlayer(Transform playerTransform)
+    {
+        if (playerTransform == null)
+        {
+            Debug.LogWarning("⚠️ 尝试设置空的玩家引用");
+            return;
+        }
+
+        player = playerTransform;
+        assignedPlayer = playerTransform; // 更新Inspector显示
+        playerRegistered = true;
+
+        Debug.Log($"🎮 房间系统收到玩家注册: {playerTransform.name}, 位置: {playerTransform.position}");
+
+        // 触发玩家注册事件
+        OnPlayerRegistered?.Invoke();
+
+        // 如果房间已创建且玩家已注册，则完成完全初始化
+        if (roomsCreated && playerRegistered)
+        {
+            CompleteFullInitialization();
+        }
+    }
+
+    /// <summary>
+    /// 获取当前玩家引用
+    /// </summary>
+    public Transform GetPlayer()
+    {
+        return player;
+    }
+
+    /// <summary>
+    /// 检查是否有有效的玩家引用
+    /// </summary>
+    public bool HasValidPlayer()
+    {
+        return player != null && player.gameObject != null;
+    }
+
+    /// <summary>
+    /// 清除玩家引用
+    /// </summary>
+    public void ClearPlayer()
+    {
+        player = null;
+        assignedPlayer = null;
+        playerRegistered = false;
+        isFullyInitialized = false;
+        Debug.Log("🎮 已清除玩家引用");
+    }
+
+    /// <summary>
+    /// 检查玩家是否已注册
+    /// </summary>
+    public bool IsPlayerRegistered()
+    {
+        return playerRegistered;
+    }
+
+    /// <summary>
+    /// 检查系统是否完全初始化
+    /// </summary>
+    public bool IsFullyInitialized()
+    {
+        return isFullyInitialized;
+    }
+
+    /// <summary>
+    /// 检查房间是否已创建
+    /// </summary>
+    public bool AreRoomsCreated()
+    {
+        return roomsCreated;
+    }
+
+    /// <summary>
+    /// 检查是否正在等待玩家注册
+    /// </summary>
+    public bool IsWaitingForPlayer()
+    {
+        return roomsCreated && !playerRegistered;
+    }
+
+    /// <summary>
+    /// 显示玩家分配状态（用于调试）
+    /// </summary>
+    public void ShowPlayerAssignmentStatus()
+    {
+        Debug.Log("=== 玩家分配状态 ===");
+        Debug.Log($"房间已创建: {roomsCreated}");
+        Debug.Log($"玩家已注册: {playerRegistered}");
+        Debug.Log($"完全初始化: {isFullyInitialized}");
+        Debug.Log($"等待玩家中: {IsWaitingForPlayer()}");
+        Debug.Log($"最大等待时间: {maxWaitTimeForPlayer}秒");
+        Debug.Log($"当前玩家引用: {(player != null ? player.name : "无")}");
+        Debug.Log($"分配的玩家显示: {(assignedPlayer != null ? assignedPlayer.name : "无")}");
+
+        if (roomsCreated && !playerRegistered)
+        {
+            float waitTime = Time.time - roomCreationTime;
+            Debug.Log($"已等待时间: {waitTime:F1}秒");
+        }
+
+        if (player != null)
+        {
+            Debug.Log($"玩家位置: {player.position}");
+            if (isFullyInitialized)
+            {
+                Debug.Log($"计算序列: {GetPlayerSequenceFromPosition()}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 强制重新等待玩家分配（用于调试）
+    /// </summary>
+    public void ForceWaitForPlayer()
+    {
+        if (isFullyInitialized)
+        {
+            Debug.LogWarning("系统已完全初始化，无法重新等待玩家");
+            return;
+        }
+
+        if (!roomsCreated)
+        {
+            Debug.LogWarning("房间尚未创建，无法等待玩家");
+            return;
+        }
+
+        Debug.Log("🕐 强制重新开始等待玩家分配...");
+
+        // 重置玩家相关状态
+        player = null;
+        assignedPlayer = null;
+        playerRegistered = false;
+        isFullyInitialized = false;
+        roomCreationTime = Time.time; // 重置等待开始时间
+
+        if (enablePlayerWaitingLog)
+        {
+            StartCoroutine(LogPlayerWaitingStatus());
+        }
+    }
+
+    #endregion
+
     [ContextMenu("显示当前房间Bug信息")]
     public void ShowCurrentRoomBugInfo()
     {
@@ -269,7 +434,16 @@ public class RoomSystem : MonoBehaviour
 
     void Update()
     {
-        if (!isInitialized || player == null) return;
+        // 只有完全初始化后才开始Update逻辑
+        if (!isFullyInitialized || player == null)
+        {
+            // 如果房间已创建但玩家还没注册，检查是否超时
+            if (roomsCreated && !playerRegistered)
+            {
+                CheckPlayerRegistrationTimeout();
+            }
+            return;
+        }
 
         // 定期检测玩家位置
         if (Time.time - lastDetectionTime >= detectionInterval)
@@ -312,14 +486,26 @@ public class RoomSystem : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!showDebugGUI || !isInitialized) return;
+        if (!showDebugGUI || !Application.isPlaying) return;
 
-        GUILayout.BeginArea(new Rect(10, Screen.height - 350, 400, 340));
+        GUILayout.BeginArea(new Rect(10, Screen.height - 500, 500, 490));
         GUILayout.Label("=== RoomSystem 调试信息 ===");
         GUILayout.Label($"房间数量: {roomInstances.Count}");
         GUILayout.Label($"当前序列: {currentRoomSequence}");
         GUILayout.Label($"检测间隔: {detectionInterval:F2}s");
-        GUILayout.Label($"初始化状态: {isInitialized}");
+
+        // 初始化状态
+        GUILayout.Label($"房间已创建: {roomsCreated}");
+        GUILayout.Label($"玩家已注册: {playerRegistered}");
+        GUILayout.Label($"完全初始化: {isFullyInitialized}");
+
+        // 玩家分配状态
+        GUILayout.Label($"玩家引用: {(player != null ? player.name : "无")}");
+        if (roomsCreated && !playerRegistered)
+        {
+            float waitTime = Time.time - roomCreationTime;
+            GUILayout.Label($"等待玩家注册: {waitTime:F1}s / {maxWaitTimeForPlayer:F1}s");
+        }
 
         GUILayout.Space(5);
         GUILayout.Label("=== 全局Bug统计 ===");
@@ -375,6 +561,24 @@ public class RoomSystem : MonoBehaviour
         {
             CleanupAllDestroyedBugs();
         }
+        if (GUILayout.Button("后备查找玩家"))
+        {
+            FindPlayerAsFallback();
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("强制完成初始化"))
+        {
+            if (roomsCreated && playerRegistered && !isFullyInitialized)
+            {
+                CompleteFullInitialization();
+            }
+        }
+        if (GUILayout.Button("显示系统状态"))
+        {
+            ShowSystemStatus();
+        }
         GUILayout.EndHorizontal();
 
         GUILayout.EndArea();
@@ -384,7 +588,43 @@ public class RoomSystem : MonoBehaviour
 
     #region 房间系统初始化
 
+    /// <summary>
+    /// 初始化房间系统 - 第一阶段：创建房间
+    /// </summary>
     void InitializeRoomSystem()
+    {
+        if (roomPrefabs.Count == 0)
+        {
+            Debug.LogError("❌ 房间预制体列表为空！");
+            return;
+        }
+
+        Debug.Log("🏠 开始房间系统初始化 - 第一阶段：创建房间");
+
+        ClearAllRooms();
+
+        // 第一阶段：创建房间（玩家会在这个过程中被实例化）
+        CreateInitialRooms();
+
+        roomsCreated = true;
+        roomCreationTime = Time.time;
+
+        // 触发房间创建完成事件
+        OnRoomsCreated?.Invoke();
+
+        Debug.Log($"✅ 房间创建完成，已创建 {roomInstances.Count} 个房间");
+        Debug.Log("⏳ 等待玩家注册...");
+
+        if (enablePlayerWaitingLog)
+        {
+            StartCoroutine(LogPlayerWaitingStatus());
+        }
+    }
+
+    /// <summary>
+    /// 创建初始房间（以默认位置为中心）
+    /// </summary>
+    void CreateInitialRooms()
     {
         if (roomPrefabs.Count == 0)
         {
@@ -393,18 +633,69 @@ public class RoomSystem : MonoBehaviour
         }
 
         ClearAllRooms();
-        FindPlayer();
 
-        // 确定玩家初始位置对应的序列号
-        int playerInitialSequence = GetPlayerSequenceFromPosition();
+        int roomCount = Mathf.Min(visibleRoomCount, roomPrefabs.Count);
+
+        int centerSequence = Mathf.RoundToInt(initialRoomCenter.x / roomSpacing);
+        int startSequence = centerSequence - playerCenterPosition;
 
         if (enableDebugLog)
-            Debug.Log($"🎯 玩家初始位置: {(player != null ? player.position.ToString("F2") : "未找到")}, 对应序列: {playerInitialSequence}");
+            Debug.Log($"创建房间范围: {startSequence} 到 {startSequence + roomCount - 1} (中心序列: {centerSequence})");
 
-        CreateRoomsAroundSequence(playerInitialSequence);
+        for (int i = 0; i < roomCount; i++)
+        {
+            int sequenceNumber = startSequence + i;
 
-        currentRoomSequence = playerInitialSequence;
-        lastProcessedSequence = playerInitialSequence;
+            // 不再循环取模，确保每个Prefab只创建一次
+            CreateRoomAtSequence(sequenceNumber, i);
+        }
+
+        currentRoomSequence = centerSequence;
+        lastProcessedSequence = centerSequence;
+    }
+
+    void CreateRoomAtSequence(int sequenceNumber, int prefabIndex)
+    {
+        float worldPos = sequenceNumber * roomSpacing;
+
+        GameObject roomPrefab = roomPrefabs[prefabIndex];
+        if (roomPrefab == null)
+        {
+            Debug.LogError($"房间预制体 {prefabIndex} 为空！");
+            return;
+        }
+
+        GameObject roomInstance = Instantiate(roomPrefab, transform);
+        roomInstance.name = $"Room_Seq{sequenceNumber}_Type{prefabIndex + 1}";
+        roomInstance.transform.position = new Vector3(worldPos, 0, 0);
+
+        RoomInstance newRoom = new RoomInstance(roomInstance, sequenceNumber, prefabIndex, worldPos);
+        roomInstances.Add(newRoom);
+
+        if (enableDebugLog)
+            Debug.Log($"🏗️ 创建房间: 序列{sequenceNumber}, 位置({worldPos:F1}, 0, 0), 类型{prefabIndex + 1}");
+    }
+
+
+    /// <summary>
+    /// 完成完全初始化 - 第二阶段：玩家注册后的逻辑
+    /// </summary>
+    void CompleteFullInitialization()
+    {
+        if (!roomsCreated || !playerRegistered)
+        {
+            Debug.LogWarning("⚠️ 无法完成完全初始化：房间未创建或玩家未注册");
+            return;
+        }
+
+        Debug.Log("🚀 开始房间系统完全初始化 - 第二阶段：玩家逻辑");
+
+        // 根据玩家位置确定当前房间序列
+        int playerSequence = GetPlayerSequenceFromPosition();
+        currentRoomSequence = playerSequence;
+        lastProcessedSequence = playerSequence;
+
+        Debug.Log($"🎯 玩家位置: {player.position.ToString("F2")}, 确定当前序列: {playerSequence}");
 
         // 扫描所有房间的bug并统计
         ScanAllRoomsForBugs();
@@ -412,27 +703,71 @@ public class RoomSystem : MonoBehaviour
         // 初始化当前房间Bug信息
         UpdateCurrentRoomBugInfo();
 
-        isInitialized = true;
+        isFullyInitialized = true;
+
+        // 触发完全初始化完成事件
+        OnSystemFullyInitialized?.Invoke();
+
         if (enableDebugLog)
         {
-            Debug.Log($"房间系统初始化完成，以序列 {playerInitialSequence} 为中心创建了 {roomInstances.Count} 个房间");
+            Debug.Log($"✅ 房间系统完全初始化完成！");
             Debug.Log($"🎯 总共发现 {totalBugsInAllRooms} 个Bug需要修复");
         }
 
-        LogCurrentRoomLayout("初始化完成");
+        LogCurrentRoomLayout("完全初始化完成");
     }
 
-    void FindPlayer()
+    /// <summary>
+    /// 检查玩家注册超时
+    /// </summary>
+    void CheckPlayerRegistrationTimeout()
     {
+        if (!roomsCreated || playerRegistered) return;
+
+        float waitTime = Time.time - roomCreationTime;
+        if (waitTime >= maxWaitTimeForPlayer)
+        {
+            Debug.LogWarning($"⚠️ 等待玩家注册超时 ({waitTime:F1}s)，尝试后备方案");
+            FindPlayerAsFallback();
+        }
+    }
+
+    /// <summary>
+    /// 后备方案：主动查找玩家（原有的查找方式）
+    /// </summary>
+    void FindPlayerAsFallback()
+    {
+        if (playerRegistered)
+        {
+            Debug.Log("玩家已注册，无需后备查找");
+            return;
+        }
+
+        Debug.Log("🔍 执行玩家后备查找...");
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
-            player = playerObj.transform;
-            Debug.Log($"找到玩家对象: {playerObj.name}, 位置: {player.position}");
+            SetPlayer(playerObj.transform);
+            Debug.Log($"✅ 后备查找成功找到玩家: {playerObj.name}");
         }
         else
         {
-            Debug.LogWarning("找不到标签为 'Player' 的对象");
+            Debug.LogError("❌ 后备查找失败，场景中没有找到Tag为'Player'的对象");
+            Debug.LogError("请检查：1) 玩家预制体是否正确放置在房间中 2) 玩家对象是否有'Player'标签 3) 玩家脚本是否正确执行注册逻辑");
+        }
+    }
+
+    /// <summary>
+    /// 记录等待玩家状态的协程
+    /// </summary>
+    IEnumerator LogPlayerWaitingStatus()
+    {
+        while (roomsCreated && !playerRegistered)
+        {
+            float waitTime = Time.time - roomCreationTime;
+            Debug.Log($"⏳ 等待玩家注册中... ({waitTime:F1}s / {maxWaitTimeForPlayer:F1}s)");
+            yield return new WaitForSeconds(2f);
         }
     }
 
@@ -448,49 +783,6 @@ public class RoomSystem : MonoBehaviour
         return sequence;
     }
 
-    void CreateRoomsAroundSequence(int centerSequence)
-    {
-        // 计算房间序列范围，以centerSequence为中心
-        int startSequence = centerSequence - playerCenterPosition;
-
-        if (enableDebugLog)
-            Debug.Log($"创建房间范围: {startSequence} 到 {startSequence + visibleRoomCount - 1}");
-
-        for (int i = 0; i < visibleRoomCount; i++)
-        {
-            int sequenceNumber = startSequence + i;
-            CreateRoomAtSequence(sequenceNumber);
-        }
-    }
-
-    void CreateRoomAtSequence(int sequenceNumber)
-    {
-        // 根据序列号计算世界位置（确保完全对应）
-        float worldPos = sequenceNumber * roomSpacing;
-        int roomTypeIndex = Mathf.Abs(sequenceNumber) % roomPrefabs.Count;
-
-        GameObject roomPrefab = roomPrefabs[roomTypeIndex];
-        if (roomPrefab == null)
-        {
-            Debug.LogError($"房间预制体 {roomTypeIndex} 为空！");
-            return;
-        }
-
-        GameObject roomInstance = Instantiate(roomPrefab, transform);
-        roomInstance.name = $"Room_Seq{sequenceNumber}_Type{roomTypeIndex + 1}";
-        roomInstance.transform.position = new Vector3(worldPos, 0, 0);
-
-        RoomInstance newRoom = new RoomInstance(roomInstance, sequenceNumber, roomTypeIndex, worldPos);
-
-        // 扫描新房间中的bug
-        newRoom.ScanForBugObjects();
-
-        roomInstances.Add(newRoom);
-
-        if (enableDebugLog)
-            Debug.Log($"创建房间: 序列{sequenceNumber}, 位置({worldPos:F1}, 0, 0), 类型{roomTypeIndex + 1}, Bug数量: {newRoom.originalBugCount}");
-    }
-
     void ClearAllRooms()
     {
         foreach (var room in roomInstances)
@@ -500,9 +792,12 @@ public class RoomSystem : MonoBehaviour
         }
         roomInstances.Clear();
 
-        // 重置bug统计
+        // 重置状态
         totalBugsInAllRooms = 0;
         totalBugsFixed = 0;
+        roomsCreated = false;
+        playerRegistered = false;
+        isFullyInitialized = false;
     }
 
     #endregion
@@ -973,6 +1268,31 @@ public class RoomSystem : MonoBehaviour
         }
     }
 
+    void ShowSystemStatus()
+    {
+        Debug.Log("=== 房间系统状态报告 ===");
+        Debug.Log($"房间已创建: {roomsCreated}");
+        Debug.Log($"玩家已注册: {playerRegistered}");
+        Debug.Log($"完全初始化: {isFullyInitialized}");
+        Debug.Log($"房间数量: {roomInstances.Count}");
+        Debug.Log($"当前序列: {currentRoomSequence}");
+
+        if (roomsCreated && !playerRegistered)
+        {
+            float waitTime = Time.time - roomCreationTime;
+            Debug.Log($"等待玩家注册时间: {waitTime:F1}s / {maxWaitTimeForPlayer:F1}s");
+        }
+
+        if (player != null)
+        {
+            Debug.Log($"玩家引用: {player.name}");
+            Debug.Log($"玩家位置: {player.position}");
+        }
+
+        Debug.Log($"全局Bug统计: {GetGlobalBugStats()}");
+        Debug.Log($"当前房间Bug: {GetCurrentRoomBugStats()}");
+    }
+
     #endregion
 
     #region 编辑器方法
@@ -986,55 +1306,58 @@ public class RoomSystem : MonoBehaviour
     [ContextMenu("强制检测玩家位置")]
     public void ForceCheckPlayerPosition()
     {
-        if (player == null) FindPlayer();
-
-        if (player != null)
+        if (!isFullyInitialized)
         {
-            Debug.Log("=== 强制检测玩家位置 ===");
-            Debug.Log($"玩家当前世界坐标: {player.position}");
+            Debug.LogWarning("系统未完全初始化，无法检测玩家位置");
+            return;
+        }
 
-            // 找到最近的房间
-            RoomInstance closestRoom = null;
-            float closestDistance = float.MaxValue;
+        if (player == null)
+        {
+            Debug.LogWarning("没有玩家引用");
+            return;
+        }
 
-            foreach (var room in roomInstances)
+        Debug.Log("=== 强制检测玩家位置 ===");
+        Debug.Log($"玩家当前世界坐标: {player.position}");
+
+        // 找到最近的房间
+        RoomInstance closestRoom = null;
+        float closestDistance = float.MaxValue;
+
+        foreach (var room in roomInstances)
+        {
+            if (room.gameObject != null)
             {
-                if (room.gameObject != null)
-                {
-                    float distance = room.GetDistanceToPlayer(player.position);
-                    Debug.Log($"房间序列{room.currentSequence}: 位置{room.gameObject.transform.position:F1}, 距离{distance:F2}, Bug状态{room.GetBugStatusInfo()}");
+                float distance = room.GetDistanceToPlayer(player.position);
+                Debug.Log($"房间序列{room.currentSequence}: 位置{room.gameObject.transform.position:F1}, 距离{distance:F2}, Bug状态{room.GetBugStatusInfo()}");
 
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        closestRoom = room;
-                    }
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestRoom = room;
                 }
             }
-
-            if (closestRoom != null)
-            {
-                Debug.Log($"✓ 最近的房间: 序列{closestRoom.currentSequence}, 距离{closestDistance:F2}");
-
-                if (closestRoom.currentSequence != currentRoomSequence)
-                {
-                    Debug.Log($"⚠️ 位置不匹配！当前记录序列: {currentRoomSequence}, 最近房间序列: {closestRoom.currentSequence}");
-                    currentRoomSequence = closestRoom.currentSequence;
-                    lastProcessedSequence = closestRoom.currentSequence;
-                    Debug.Log($"✓ 已更正玩家位置为序列 {closestRoom.currentSequence}");
-                }
-                else
-                {
-                    Debug.Log($"✅ 玩家位置正确，在序列 {closestRoom.currentSequence}");
-                }
-            }
-
-            LogCurrentRoomLayout("检测后的状态");
         }
-        else
+
+        if (closestRoom != null)
         {
-            Debug.LogWarning("没有找到玩家对象，请确保场景中有Tag为'Player'的对象。");
+            Debug.Log($"✓ 最近的房间: 序列{closestRoom.currentSequence}, 距离{closestDistance:F2}");
+
+            if (closestRoom.currentSequence != currentRoomSequence)
+            {
+                Debug.Log($"⚠️ 位置不匹配！当前记录序列: {currentRoomSequence}, 最近房间序列: {closestRoom.currentSequence}");
+                currentRoomSequence = closestRoom.currentSequence;
+                lastProcessedSequence = closestRoom.currentSequence;
+                Debug.Log($"✓ 已更正玩家位置为序列 {closestRoom.currentSequence}");
+            }
+            else
+            {
+                Debug.Log($"✅ 玩家位置正确，在序列 {closestRoom.currentSequence}");
+            }
         }
+
+        LogCurrentRoomLayout("检测后的状态");
     }
 
     [ContextMenu("重新扫描所有房间的Bug")]
@@ -1199,9 +1522,9 @@ public class RoomSystem : MonoBehaviour
     [ContextMenu("测试环形移动")]
     public void TestRingMovement()
     {
-        if (!isInitialized)
+        if (!isFullyInitialized)
         {
-            Debug.LogWarning("房间系统未初始化");
+            Debug.LogWarning("房间系统未完全初始化");
             return;
         }
 
@@ -1224,13 +1547,28 @@ public class RoomSystem : MonoBehaviour
         Debug.Log("=== 环形移动测试完成 ===");
     }
 
+    [ContextMenu("显示系统状态")]
+    public void ShowSystemStatusDebug()
+    {
+        ShowSystemStatus();
+    }
+
     #endregion
 
     #region Gizmos绘制
 
     void OnDrawGizmos()
     {
-        if (!showDebugLines || !isInitialized) return;
+        if (!showDebugLines) return;
+
+        // 显示系统状态
+        Gizmos.color = roomsCreated ? Color.green : Color.yellow;
+        if (transform.position != Vector3.zero)
+        {
+            Gizmos.DrawWireSphere(transform.position, roomsCreated ? 1f : 2f);
+        }
+
+        if (!roomsCreated) return;
 
         Gizmos.color = debugLineColor;
 
