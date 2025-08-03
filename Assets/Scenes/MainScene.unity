@@ -5152,8 +5152,21 @@ MonoBehaviour:
     clipNames: 
     isAnalyzed: 0
     lastError: 
-  - category: 2
+  - category: 1
     prefab: {fileID: 9054668071483261044, guid: 9812bd4262fa6be409f7421ab6b53c26, type: 3}
+    animationName: 
+    useManualDuration: 1
+    manualDuration: 7.55
+    duration: 0
+    isLooping: 0
+    hasAnimator: 0
+    hasValidClip: 0
+    clipCount: 0
+    clipNames: 
+    isAnalyzed: 0
+    lastError: 
+  - category: 2
+    prefab: {fileID: 2208635203944298224, guid: 880848f31d413a143bebde8422d538bd, type: 3}
     animationName: 
     useManualDuration: 1
     manualDuration: 7.55
