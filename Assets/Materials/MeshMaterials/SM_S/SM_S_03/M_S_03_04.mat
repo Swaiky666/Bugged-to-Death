@@ -170,7 +170,7 @@ Material:
     - _LeftTopColor: {r: 0.8962264, g: 0.7551265, b: 0.6975347, a: 0}
     - _LightTint: {r: 1, g: 1, b: 1, a: 0}
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
-    - _Offset: {r: 0, g: 0, b: 0, a: 1}
+    - _Offset: {r: 0, g: 0, b: 0, a: 0}
     - _OutlineColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _RightBottomColor: {r: 0.6509434, g: 0.6330056, b: 0.4452207, a: 0}
     - _RightTopColor: {r: 0.8962264, g: 0.7551265, b: 0.6975347, a: 0}

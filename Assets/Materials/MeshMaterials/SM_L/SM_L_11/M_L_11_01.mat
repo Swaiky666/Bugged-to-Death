@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_L_02_01
+  m_Name: M_L_11_01
   m_Shader: {fileID: 4800000, guid: e205ec5a2dab342e78812532c2f67fd5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -172,11 +172,11 @@ Material:
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
     - _Offset: {r: 0, g: 0, b: 0, a: 0}
     - _OutlineColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _RightBottomColor: {r: 0.34173468, g: 0.3529412, b: 0.11764705, a: 0}
-    - _RightTopColor: {r: 0.681, g: 0.39640296, b: 0.30831337, a: 1}
+    - _RightBottomColor: {r: 0.7924528, g: 0.7882402, b: 0.6155215, a: 0}
+    - _RightTopColor: {r: 0.7987421, g: 0.4686958, b: 0.36922976, a: 1}
     - _RimColor: {r: 0.8, g: 0.8, b: 0.8, a: 0.5}
     - _SColor: {r: 0.3962264, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _SpecularColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    - _TopColor: {r: 0.7610062, g: 0.554214, b: 0.49058568, a: 1}
+    - _TopColor: {r: 0.681, g: 0.39640298, b: 0.30831343, a: 1}
   m_BuildTextureStacks: []

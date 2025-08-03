@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_L_02_01
+  m_Name: M_S_10_04 3
   m_Shader: {fileID: 4800000, guid: e205ec5a2dab342e78812532c2f67fd5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -157,26 +157,26 @@ Material:
     - __dummy__: 0
     m_Colors:
     - _AmbientColor: {r: 0.21698111, g: 0.21698111, b: 0.21698111, a: 0}
-    - _BackBottomColor: {r: 0.5660378, g: 0.24310254, b: 0.23762906, a: 0}
-    - _BackTopColor: {r: 0.681, g: 0.39640296, b: 0.30831337, a: 1}
+    - _BackBottomColor: {r: 0.16828837, g: 0.38464385, b: 0.42138356, a: 0}
+    - _BackTopColor: {r: 0.5597484, g: 0.35104582, b: 0.18482253, a: 0}
     - _BaseColor: {r: 1, g: 0.482, b: 0.482, a: 1}
-    - _BottomColor: {r: 0.3529412, g: 0.12235197, b: 0.11764705, a: 0}
+    - _BottomColor: {r: 0.38364768, g: 0.20754774, b: 0.20147534, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _FrontBottomColor: {r: 0.3529412, g: 0.28310397, b: 0.11764705, a: 0}
-    - _FrontTopColor: {r: 0.681, g: 0.39640296, b: 0.30831337, a: 1}
+    - _FrontBottomColor: {r: 0.7294118, g: 0.57346123, b: 0.4509804, a: 0}
+    - _FrontTopColor: {r: 0.899371, g: 0.67739123, b: 0.5005932, a: 0}
     - _HColor: {r: 1, g: 1, b: 1, a: 1}
-    - _LeftBottomColor: {r: 0.3529412, g: 0.22236128, b: 0.11764705, a: 0}
-    - _LeftTopColor: {r: 0.681, g: 0.39640296, b: 0.30831337, a: 1}
+    - _LeftBottomColor: {r: 0.4994659, g: 0.62760925, b: 0.8679245, a: 0}
+    - _LeftTopColor: {r: 0.93710685, g: 0.87019885, b: 0.5157034, a: 0}
     - _LightTint: {r: 1, g: 1, b: 1, a: 0}
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
     - _Offset: {r: 0, g: 0, b: 0, a: 0}
     - _OutlineColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _RightBottomColor: {r: 0.34173468, g: 0.3529412, b: 0.11764705, a: 0}
-    - _RightTopColor: {r: 0.681, g: 0.39640296, b: 0.30831337, a: 1}
+    - _RightBottomColor: {r: 0.15789929, g: 0.12849562, b: 0.5597484, a: 0}
+    - _RightTopColor: {r: 0.9245283, g: 0.7546003, b: 0.6192594, a: 0}
     - _RimColor: {r: 0.8, g: 0.8, b: 0.8, a: 0.5}
     - _SColor: {r: 0.3962264, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _SpecularColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    - _TopColor: {r: 0.7610062, g: 0.554214, b: 0.49058568, a: 1}
+    - _TopColor: {r: 0.6396107, g: 0.8477894, b: 0.8805031, a: 0}
   m_BuildTextureStacks: []

@@ -157,17 +157,17 @@ Material:
     - __dummy__: 0
     m_Colors:
     - _AmbientColor: {r: 0.5, g: 0.5, b: 0.5, a: 0}
-    - _BackBottomColor: {r: 0.74509805, g: 0.3647059, b: 0.52511346, a: 0}
-    - _BackTopColor: {r: 0.88699996, g: 0.4275717, b: 0.41511595, a: 0}
+    - _BackBottomColor: {r: 0.6792453, g: 0.3609825, b: 0.49550593, a: 0}
+    - _BackTopColor: {r: 0.7610062, g: 0.5520265, b: 0.34221342, a: 0}
     - _BaseColor: {r: 1, g: 0.482, b: 0.482, a: 1}
-    - _BottomColor: {r: 0.74509805, g: 0.38790366, b: 0.36435297, a: 0}
+    - _BottomColor: {r: 0.47891763, g: 0.29696205, b: 0.48427665, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FrontBottomColor: {r: 0.74509805, g: 0.52177703, b: 0.3647059, a: 0}
-    - _FrontTopColor: {r: 0.88699996, g: 0.4275717, b: 0.41511595, a: 0}
+    - _FrontTopColor: {r: 0.8301887, g: 0.3519522, b: 0.34721717, a: 0}
     - _HColor: {r: 1, g: 1, b: 1, a: 1}
     - _LeftBottomColor: {r: 0.74509805, g: 0.3647059, b: 0.38040423, a: 0}
-    - _LeftTopColor: {r: 0.88699996, g: 0.4275717, b: 0.41511595, a: 0}
+    - _LeftTopColor: {r: 0.38993704, g: 0.17354035, b: 0.16799171, a: 0}
     - _LightTint: {r: 1, g: 1, b: 1, a: 0}
     - _LightmapColor: {r: 0, g: 0, b: 0, a: 0}
     - _Offset: {r: 0, g: 0, b: 0, a: 0}
@@ -178,5 +178,5 @@ Material:
     - _SColor: {r: 0.3962264, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _SpecularColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    - _TopColor: {r: 0.88699996, g: 0.42757174, b: 0.41511598, a: 0}
+    - _TopColor: {r: 0.6981132, g: 0.45893833, b: 0.44565085, a: 0}
   m_BuildTextureStacks: []
