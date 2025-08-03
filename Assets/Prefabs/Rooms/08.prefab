@@ -92,6 +92,18 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -13.3
       objectReference: {fileID: 0}
+    - target: {fileID: 2659074836930832489, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 6.331
+      objectReference: {fileID: 0}
+    - target: {fileID: 2659074836930832489, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -7.277
+      objectReference: {fileID: 0}
+    - target: {fileID: 5138919585699714945, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
+      propertyPath: bugType
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 5138919585699714945, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
       propertyPath: disableCollidersCompletely
       value: 1
@@ -106,11 +118,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5318920399771239057, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
       propertyPath: m_IsTrigger
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6471944379125863036, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8847982980299941805, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
       propertyPath: m_LocalPosition.x
