@@ -45,16 +45,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   roomPrefabs:
-  - {fileID: 6865060058388166072, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
-  - {fileID: 1452315536517611091, guid: 5bafb1df25a46a6429f39ef4f90f9371, type: 3}
-  - {fileID: 7828806206725251016, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
-  - {fileID: 3849583616388103519, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
-  - {fileID: 581795952517606793, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
-  - {fileID: 4652548198677478075, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
-  - {fileID: 7196092834006521575, guid: 37b956eeadc0c4c4eb4a11301f49be94, type: 3}
-  - {fileID: 515820085968749928, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
-  - {fileID: 2627392369574143883, guid: 646000fc34094fa44bbddbb4828ce04a, type: 3}
-  - {fileID: 3771593603716245354, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
+  - {fileID: 8230448316951640689, guid: 5f7b3a5d590a29241bd0bdb76f7c0de2, type: 3}
+  - {fileID: 8230448316951640689, guid: 6cc5b0b88486b3b4cb876142c749bf70, type: 3}
+  - {fileID: 8230448316951640689, guid: d899374531c65a54faf526bd79dc6243, type: 3}
+  - {fileID: 8230448316951640689, guid: ca828a40fbd1cb34f9c1c07ccd37c0c4, type: 3}
+  - {fileID: 8230448316951640689, guid: 587be4754a586f24daf6954ee710a788, type: 3}
+  - {fileID: 8230448316951640689, guid: f499ffba8529dfd4ea8735e860af0ebc, type: 3}
+  - {fileID: 8230448316951640689, guid: 1f2076a2c74e04b41a9ee0979400b3b1, type: 3}
+  - {fileID: 8230448316951640689, guid: 78d8908998e1f11459dadc7b0e225efc, type: 3}
+  - {fileID: 8230448316951640689, guid: e4c91e0bcf5184649bb2be47b538e174, type: 3}
+  - {fileID: 8230448316951640689, guid: f0903720848ac4741bc8982b3b7e943d, type: 3}
   roomSpacing: 15
   visibleRoomCount: 10
   playerCenterPosition: 4
