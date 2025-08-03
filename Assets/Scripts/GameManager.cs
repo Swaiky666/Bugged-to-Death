@@ -1,5 +1,6 @@
-﻿// GameManager.cs - 完整的蓝量系统和游戏结束条件
+﻿// GameManager.cs - 完整的蓝量系统、游戏结束条件和门系统
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // 自定义ReadOnly属性，用于在Inspector中显示只读字段
@@ -39,13 +40,27 @@ namespace BugFixerGame
         [SerializeField] private bool enableBugFixWin = true;           // 启用修复所有bug获胜
         [SerializeField] private float gameEndDelay = 2f;               // 游戏结束延迟时间
 
+        [Header("Door System Settings")]
+        [SerializeField] private bool enableDoorSystem = true;          // 启用门系统
+        [SerializeField] private bool globalDoorState = false;          // 全局门状态（开启/关闭）
+        [SerializeField] private bool showDoorDebugInfo = false;        // 显示门调试信息
+
         [Header("Current Game Status (Runtime)")]
         [SerializeField, ReadOnly] private bool gameEnded = false;      // 游戏是否已结束
         [SerializeField, ReadOnly] private string gameEndReason = "";   // 游戏结束原因
 
+        [Header("Door System Status (Runtime)")]
+        [SerializeField, ReadOnly] private int registeredDoorsCount = 0;    // 已注册门数量
+        [SerializeField, ReadOnly] private int doorsNearPlayer = 0;         // 玩家附近的门数量
+        [SerializeField, ReadOnly] private bool anyPlayerNearDoor = false;  // 是否有玩家在任何门附近
+
         private GameObject currentGameInstance;
         private bool isPaused = false;
         private RoomSystem roomSystem;
+
+        // 门系统管理
+        private List<Door> registeredDoors = new List<Door>();
+        private bool lastPlayerNearDoorState = false;
 
         public static GameManager Instance { get; private set; }
 
@@ -57,6 +72,10 @@ namespace BugFixerGame
         // 新增事件
         public static event Action OnHappyEnd; // 所有bug修复完成时触发 - Happy End
         public static event Action<string> OnGameEnded; // 游戏结束事件（包含结束原因）
+        public static event Action OnGameInstanceCreated; // 🆕 游戏实例创建完成事件
+
+        // 门系统事件
+        public static event Action<bool> OnGlobalDoorStateChanged; // 全局门状态改变事件 (isOpen)
 
         private void Awake()
         {
@@ -128,7 +147,11 @@ namespace BugFixerGame
             // 查找房间系统
             FindRoomSystem();
 
-            UIManager.Instance?.ShowHUD();
+            // 初始化门系统
+            InitializeDoorSystem();
+
+            // 🆕 等待额外一帧确保所有初始化完成
+            yield return new WaitForEndOfFrame();
 
             Debug.Log($"游戏开始 - 魔法值: {currentMana}/{maxMana}");
 
@@ -137,6 +160,10 @@ namespace BugFixerGame
             {
                 Debug.Log($"🎯 获胜条件：修复所有房间中的Bug");
             }
+
+            // 🆕 触发游戏实例创建完成事件
+            OnGameInstanceCreated?.Invoke();
+            Debug.Log("🎮 游戏实例创建完成事件已触发");
         }
 
         public void ReturnToMainMenu()
@@ -150,6 +177,9 @@ namespace BugFixerGame
             gameEnded = false;
             gameEndReason = "";
             roomSystem = null;
+
+            // 清理门系统
+            CleanupDoorSystem();
 
             // 取消暂停并通知 UIManager 切换到主菜单
             ResumeGame();
@@ -357,6 +387,242 @@ namespace BugFixerGame
             Debug.Log($"🔧 游戏结束条件设置 - 蓝量耗尽: {manaGameOver}, Bug修复获胜: {bugFixWin}");
         }
 
+        #region 门系统管理
+
+        /// <summary>
+        /// 初始化门系统
+        /// </summary>
+        private void InitializeDoorSystem()
+        {
+            if (!enableDoorSystem) return;
+
+            // 清空现有门列表
+            registeredDoors.Clear();
+
+            // 重置门状态
+            globalDoorState = false;
+            anyPlayerNearDoor = false;
+            doorsNearPlayer = 0;
+            registeredDoorsCount = 0;
+            lastPlayerNearDoorState = false;
+
+            Debug.Log("🚪 门系统初始化完成");
+        }
+
+        /// <summary>
+        /// 清理门系统
+        /// </summary>
+        private void CleanupDoorSystem()
+        {
+            if (!enableDoorSystem) return;
+
+            // 清空门列表
+            registeredDoors.Clear();
+
+            // 重置状态
+            globalDoorState = false;
+            anyPlayerNearDoor = false;
+            doorsNearPlayer = 0;
+            registeredDoorsCount = 0;
+            lastPlayerNearDoorState = false;
+
+            Debug.Log("🚪 门系统已清理");
+        }
+
+        /// <summary>
+        /// 注册门到管理器
+        /// </summary>
+        public void RegisterDoor(Door door)
+        {
+            if (!enableDoorSystem)
+            {
+                Debug.LogWarning("⚠️ 门系统未启用，无法注册门");
+                return;
+            }
+
+            if (door == null)
+            {
+                Debug.LogWarning("⚠️ 尝试注册空门对象");
+                return;
+            }
+
+            if (!registeredDoors.Contains(door))
+            {
+                registeredDoors.Add(door);
+                registeredDoorsCount = registeredDoors.Count;
+
+                // 设置门的初始状态
+                door.SetDoorState(globalDoorState, false);
+
+                Debug.Log($"✅ 门 {door.gameObject.name} 已注册到GameManager (总数: {registeredDoorsCount})");
+            }
+            else
+            {
+                Debug.LogWarning($"⚠️ 门 {door.gameObject.name} 已经注册过了");
+            }
+        }
+
+        /// <summary>
+        /// 从管理器注销门
+        /// </summary>
+        public void UnregisterDoor(Door door)
+        {
+            if (door == null) return;
+
+            if (registeredDoors.Remove(door))
+            {
+                registeredDoorsCount = registeredDoors.Count;
+                Debug.Log($"❌ 门 {door.gameObject.name} 已从GameManager注销 (剩余: {registeredDoorsCount})");
+
+                // 重新计算玩家附近门的数量
+                UpdatePlayerNearDoorCount();
+            }
+        }
+
+        /// <summary>
+        /// 更新全局门状态（由门对象调用）
+        /// </summary>
+        public void UpdateGlobalDoorState(bool playerNearDoor)
+        {
+            if (!enableDoorSystem) return;
+
+            // 更新玩家附近门的计数
+            UpdatePlayerNearDoorCount();
+
+            // 检查是否需要改变全局门状态
+            bool shouldDoorsBeOpen = anyPlayerNearDoor;
+
+            if (shouldDoorsBeOpen != globalDoorState)
+            {
+                globalDoorState = shouldDoorsBeOpen;
+
+                // 更新所有门的状态
+                foreach (var door in registeredDoors)
+                {
+                    if (door != null)
+                    {
+                        door.SetDoorState(globalDoorState, true);
+                    }
+                }
+
+                // 触发全局门状态改变事件
+                OnGlobalDoorStateChanged?.Invoke(globalDoorState);
+
+                if (showDoorDebugInfo)
+                {
+                    Debug.Log($"🚪 全局门状态改变: {(globalDoorState ? "全部开启" : "全部关闭")} " +
+                             $"(玩家附近门数量: {doorsNearPlayer}/{registeredDoorsCount})");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 更新玩家附近门的数量
+        /// </summary>
+        private void UpdatePlayerNearDoorCount()
+        {
+            doorsNearPlayer = 0;
+
+            foreach (var door in registeredDoors)
+            {
+                if (door != null && door.IsPlayerNearby())
+                {
+                    doorsNearPlayer++;
+                }
+            }
+
+            bool newAnyPlayerNearDoor = doorsNearPlayer > 0;
+
+            if (newAnyPlayerNearDoor != anyPlayerNearDoor)
+            {
+                anyPlayerNearDoor = newAnyPlayerNearDoor;
+
+                if (showDoorDebugInfo)
+                {
+                    Debug.Log($"🎯 玩家门检测状态改变: {(anyPlayerNearDoor ? $"检测到{doorsNearPlayer}个门" : "没有门在附近")}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 强制设置所有门的状态
+        /// </summary>
+        public void ForceSetAllDoorsState(bool open, bool animate = true)
+        {
+            if (!enableDoorSystem) return;
+
+            globalDoorState = open;
+
+            foreach (var door in registeredDoors)
+            {
+                if (door != null)
+                {
+                    door.SetDoorState(open, animate);
+                }
+            }
+
+            OnGlobalDoorStateChanged?.Invoke(globalDoorState);
+
+            Debug.Log($"🔧 强制设置所有门状态: {(open ? "开启" : "关闭")} (动画: {animate})");
+        }
+
+        /// <summary>
+        /// 获取门系统信息
+        /// </summary>
+        public string GetDoorSystemInfo()
+        {
+            if (!enableDoorSystem) return "门系统未启用";
+
+            return $"门系统: {registeredDoorsCount}个门已注册, " +
+                   $"{doorsNearPlayer}个门附近有玩家, " +
+                   $"全局状态: {(globalDoorState ? "开启" : "关闭")}";
+        }
+
+        /// <summary>
+        /// 清理已销毁的门对象
+        /// </summary>
+        public void CleanupDestroyedDoors()
+        {
+            int removedCount = registeredDoors.RemoveAll(door => door == null);
+
+            if (removedCount > 0)
+            {
+                registeredDoorsCount = registeredDoors.Count;
+                Debug.Log($"🧹 清理了{removedCount}个已销毁的门对象，剩余: {registeredDoorsCount}");
+
+                UpdatePlayerNearDoorCount();
+            }
+        }
+
+        // 门系统公共接口
+        public bool IsDoorSystemEnabled() => enableDoorSystem;
+        public bool GetGlobalDoorState() => globalDoorState;
+        public int GetRegisteredDoorsCount() => registeredDoorsCount;
+        public int GetDoorsNearPlayerCount() => doorsNearPlayer;
+        public bool IsAnyPlayerNearDoor() => anyPlayerNearDoor;
+        public List<Door> GetRegisteredDoors() => new List<Door>(registeredDoors); // 返回副本
+
+        /// <summary>
+        /// 设置门系统启用状态
+        /// </summary>
+        public void SetDoorSystemEnabled(bool enabled)
+        {
+            enableDoorSystem = enabled;
+
+            if (!enabled)
+            {
+                CleanupDoorSystem();
+            }
+            else
+            {
+                InitializeDoorSystem();
+            }
+
+            Debug.Log($"🔧 门系统{(enabled ? "启用" : "禁用")}");
+        }
+
+        #endregion
+
         #region 调试功能
 
         [Header("调试")]
@@ -366,7 +632,7 @@ namespace BugFixerGame
         {
             if (!showDebugInfo) return;
 
-            GUILayout.BeginArea(new Rect(10, 10, 350, 200));
+            GUILayout.BeginArea(new Rect(10, 10, 350, 300));
             GUILayout.Label("=== GameManager 调试 ===");
             GUILayout.Label($"当前魔法值: {currentMana}/{maxMana}");
             GUILayout.Label($"魔法值百分比: {GetManaPercentage():P0}");
@@ -379,6 +645,15 @@ namespace BugFixerGame
             {
                 GUILayout.Label($"Bug统计: {GetBugStats()}");
                 GUILayout.Label($"剩余Bug: {GetRemainingBugCount()}");
+            }
+
+            // 门系统调试信息
+            if (enableDoorSystem)
+            {
+                GUILayout.Label("--- 门系统 ---");
+                GUILayout.Label($"已注册门: {registeredDoorsCount}");
+                GUILayout.Label($"附近门数: {doorsNearPlayer}");
+                GUILayout.Label($"全局状态: {(globalDoorState ? "开启" : "关闭")}");
             }
 
             GUILayout.Space(10);
@@ -412,6 +687,32 @@ namespace BugFixerGame
                 }
             }
             GUILayout.EndHorizontal();
+
+            // 门系统测试按钮
+            if (enableDoorSystem)
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("强制开门"))
+                {
+                    ForceSetAllDoorsState(true, true);
+                }
+                if (GUILayout.Button("强制关门"))
+                {
+                    ForceSetAllDoorsState(false, true);
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("清理门列表"))
+                {
+                    CleanupDestroyedDoors();
+                }
+                if (GUILayout.Button("门系统信息"))
+                {
+                    Debug.Log(GetDoorSystemInfo());
+                }
+                GUILayout.EndHorizontal();
+            }
 
             if (GUILayout.Button("重置游戏状态"))
             {
@@ -501,6 +802,99 @@ namespace BugFixerGame
             }
 
             Debug.Log($"游戏结束条件: 蓝量耗尽={enableManaGameOver}, Bug修复获胜={enableBugFixWin}");
+
+            // 门系统统计
+            if (enableDoorSystem)
+            {
+                Debug.Log($"门系统: {GetDoorSystemInfo()}");
+            }
+            else
+            {
+                Debug.Log("门系统: 未启用");
+            }
+        }
+
+        // 门系统调试方法
+        [ContextMenu("强制开启所有门")]
+        private void TestOpenAllDoors()
+        {
+            if (Application.isPlaying && enableDoorSystem)
+            {
+                ForceSetAllDoorsState(true, true);
+            }
+        }
+
+        [ContextMenu("强制关闭所有门")]
+        private void TestCloseAllDoors()
+        {
+            if (Application.isPlaying && enableDoorSystem)
+            {
+                ForceSetAllDoorsState(false, true);
+            }
+        }
+
+        [ContextMenu("显示门系统信息")]
+        private void ShowDoorSystemInfo()
+        {
+            if (Application.isPlaying)
+            {
+                Debug.Log("=== 门系统信息 ===");
+                Debug.Log(GetDoorSystemInfo());
+
+                if (registeredDoors.Count > 0)
+                {
+                    Debug.Log("已注册的门:");
+                    for (int i = 0; i < registeredDoors.Count; i++)
+                    {
+                        var door = registeredDoors[i];
+                        if (door != null)
+                        {
+                            Debug.Log($"  {i + 1}. {door.gameObject.name} - " +
+                                     $"状态: {(door.IsOpen() ? "开启" : "关闭")}, " +
+                                     $"玩家距离: {door.GetPlayerDistance():F2}m, " +
+                                     $"检测距离: {door.GetDetectionDistance():F2}m, " +
+                                     $"玩家附近: {(door.IsPlayerNearby() ? "是" : "否")}");
+                        }
+                        else
+                        {
+                            Debug.Log($"  {i + 1}. [已销毁的门对象]");
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.Log("没有已注册的门");
+                }
+            }
+        }
+
+        [ContextMenu("清理已销毁的门")]
+        private void TestCleanupDoors()
+        {
+            if (Application.isPlaying)
+            {
+                CleanupDestroyedDoors();
+            }
+        }
+
+        [ContextMenu("重新初始化门系统")]
+        private void TestReinitializeDoorSystem()
+        {
+            if (Application.isPlaying)
+            {
+                CleanupDoorSystem();
+                InitializeDoorSystem();
+                Debug.Log("🔄 门系统已重新初始化");
+            }
+        }
+
+        [ContextMenu("切换门系统启用状态")]
+        private void TestToggleDoorSystem()
+        {
+            if (Application.isPlaying)
+            {
+                SetDoorSystemEnabled(!enableDoorSystem);
+            }
         }
 
         #endregion
