@@ -502,6 +502,66 @@ public class RoomSystem : MonoBehaviour
         }
     }
 
+    [ContextMenu("强制立即检测位置")]
+    public void ForceImmediateDetection()
+    {
+        if (!isFullyInitialized || player == null)
+        {
+            Debug.LogWarning("系统未完全初始化或没有玩家");
+            return;
+        }
+
+        Debug.Log("🔍 强制立即检测玩家位置...");
+        Debug.Log($"当前检测偏移: {detectionOffset}");
+        Debug.Log($"玩家当前位置: {player.position}");
+
+        // 强制执行检测逻辑，忽略检测间隔
+        CheckPlayerRoomPosition();
+
+        // 显示检测结果
+        ShowRoomDetectionStatus();
+    }
+
+    /// <summary>
+    /// 设置X轴偏移并立即测试
+    /// </summary>
+    public void SetXOffsetAndTest(float xOffset)
+    {
+        detectionOffset.x = xOffset;
+        Debug.Log($"🔧 设置X轴偏移为: {xOffset}");
+        Debug.Log($"🔧 完整偏移值: {detectionOffset}");
+
+        if (isFullyInitialized && player != null)
+        {
+            ForceImmediateDetection();
+        }
+    }
+    public void TestXOffsetChange()
+    {
+        if (player == null)
+        {
+            Debug.LogWarning("没有玩家对象");
+            return;
+        }
+
+        Debug.Log("=== 测试X轴偏移变化 ===");
+        Debug.Log($"当前检测偏移: {detectionOffset}");
+        Debug.Log($"玩家位置: {player.position}");
+
+        // 测试当前偏移下的检测状态
+        var roomsContaining = GetRoomsContainingPlayer();
+        Debug.Log($"当前偏移下，玩家在 {roomsContaining.Count} 个房间范围内");
+
+        foreach (var room in roomsContaining)
+        {
+            var depth = room.GetPlayerDepthInRoom(player.position, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset);
+            Debug.Log($"房间序列{room.currentSequence}: 深度{depth:F2}");
+        }
+
+        // 强制触发位置检测
+        CheckPlayerRoomPosition();
+    }
+
     [ContextMenu("显示房间检测状态")]
     public void ShowRoomDetectionStatus()
     {
@@ -577,6 +637,34 @@ public class RoomSystem : MonoBehaviour
             {
                 GetCurrentRoom()?.CleanupDestroyedBugs();
             }
+        }
+    }
+
+    /// <summary>
+    /// 用于调试：在Inspector中修改detectionOffset后调用此方法立即测试效果
+    /// </summary>
+    [ContextMenu("应用当前偏移设置")]
+    public void ApplyCurrentOffsetSettings()
+    {
+        if (!Application.isPlaying)
+        {
+            Debug.LogWarning("请在Play模式下测试偏移设置");
+            return;
+        }
+
+        Debug.Log($"🔧 应用当前偏移设置: {detectionOffset}");
+
+        if (isFullyInitialized && player != null)
+        {
+            // 重置检测时间，强制下一帧执行检测
+            lastDetectionTime = 0f;
+
+            // 立即执行一次检测
+            ForceImmediateDetection();
+        }
+        else
+        {
+            Debug.LogWarning("系统未完全初始化或玩家未设置");
         }
     }
 

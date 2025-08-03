@@ -45,14 +45,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   roomPrefabs:
-  - {fileID: 581795952517606793, guid: 0bd42af828fa11242b72adaf3a4ab823, type: 3}
   - {fileID: 6865060058388166072, guid: 7e0f43f776e22244b9d47d26179d4aa8, type: 3}
   - {fileID: 1452315536517611091, guid: 5bafb1df25a46a6429f39ef4f90f9371, type: 3}
+  - {fileID: 7828806206725251016, guid: 62f31ffd3fd8b0a498e083ae88ba20a5, type: 3}
+  - {fileID: 3849583616388103519, guid: 4441a7e0bac7a0f43ba121a0bd6c059a, type: 3}
   - {fileID: 581795952517606793, guid: 7832d23332e10444dbdfad91625d887e, type: 3}
-  - {fileID: 581795952517606793, guid: 0bd42af828fa11242b72adaf3a4ab823, type: 3}
-  - {fileID: 581795952517606793, guid: 0bd42af828fa11242b72adaf3a4ab823, type: 3}
-  - {fileID: 581795952517606793, guid: 0bd42af828fa11242b72adaf3a4ab823, type: 3}
-  - {fileID: 581795952517606793, guid: 0bd42af828fa11242b72adaf3a4ab823, type: 3}
+  - {fileID: 4652548198677478075, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
+  - {fileID: 7196092834006521575, guid: 37b956eeadc0c4c4eb4a11301f49be94, type: 3}
+  - {fileID: 515820085968749928, guid: b992da213afeadf4abfe226b6cf68235, type: 3}
   - {fileID: 2627392369574143883, guid: 646000fc34094fa44bbddbb4828ce04a, type: 3}
   - {fileID: 3771593603716245354, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
   roomSpacing: 15
@@ -60,6 +60,12 @@ MonoBehaviour:
   playerCenterPosition: 4
   initialRoomCenter: {x: 0, y: 0, z: 0}
   detectionInterval: 0.1
+  roomDetectionRange: 10
+  useBoxDetection: 1
+  roomDetectionSize: {x: 15, y: 10, z: 15}
+  detectionOffset: {x: 6.5, y: 0, z: 0}
+  showDetectionBounds: 1
+  detectionBoundsColor: {r: 0, g: 1, b: 1, a: 1}
   assignedPlayer: {fileID: 0}
   maxWaitTimeForPlayer: 10
   enablePlayerWaitingLog: 1

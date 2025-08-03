@@ -5545,7 +5545,7 @@ Transform:
   m_GameObject: {fileID: 581795952517606793}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 6.5, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -90484,7 +90484,11 @@ MonoBehaviour:
   bugTitle: 
   showInInfoPanel: 1
   includeChildRenderers: 1
+  includeInactiveChildren: 0
+  maxSearchDepth: -1
   debugRendererSearch: 1
+  excludeByName: []
+  excludeByTag: []
   correctObject: {fileID: 2204380974684793479}
   popupAnimationTime: 0.5
   popupCurve:
@@ -90523,24 +90527,61 @@ MonoBehaviour:
   flickerInterval: 0.5
   flickerAlphaMin: 0.3
   flickerAlphaMax: 1
+  flickerRandomInterval: 0
+  flickerIntervalRange: {x: 0.2, y: 0.8}
   collisionMissingAlpha: 0.8
+  disableCollidersCompletely: 0
   buggyMaterial: {fileID: 0}
   hideMaterialCompletely: 0
+  buggyMaterials: []
   wrongObject: {fileID: 0}
+  wrongObjects: []
+  hideOriginalWhenShowingWrong: 1
   hideObjectCompletely: 0
   missingObjectAlpha: 0
+  disableCollidersWhenMissing: 1
   shakeIntensity: 0.1
   shakeSpeed: 10
   shakeDirection: {x: 1, y: 1, z: 1}
+  randomShakeDirection: 0
+  shakeIntensityCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   wrongPosition: {x: 0, y: 0, z: 0}
   wrongRotation: {x: 0, y: 0, z: 0}
   wrongScale: {x: 1, y: 1, z: 1}
   enableClippingMode: 0
   clippingOffset: -0.5
+  useWorldSpace: 0
   useURPCompatibility: 1
   transparentMaterialPrefab: {fileID: 0}
+  preserveChildrenOrder: 1
+  cacheComponentsOnStart: 1
+  autoDetectShaderType: 1
   debugFlickering: 1
   showDebugInfo: 0
+  logComponentDetails: 0
 --- !u!4 &8031422748335350408 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7504775696535511779, guid: 31e1691d5bba438458e088a02d72435b, type: 3}
