@@ -893,6 +893,59 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 7846685681052900924, guid: 486031e097bbc2e4697aaefd7a1ee57c, type: 3}
+--- !u!1 &9122677778325453068
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7532161305171333230}
+  - component: {fileID: 7313873085562680631}
+  m_Layer: 0
+  m_Name: ProximityMessageSender (3)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7532161305171333230
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9122677778325453068}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -10.980001, y: 1.52, z: -9.7820015}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5808212182309783548}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7313873085562680631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9122677778325453068}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4abf8707ab04d4fa033889385e81ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageType: 0
+  messageTitle: "\u63D0\u793A"
+  messageContent: Object movead x 3 Object shaking
+  useCustomDisplayTime: 1
+  customDisplayTime: 15
+  triggerOnce: 0
+  destroyAfterTrigger: 1
+  showDebugGizmos: 1
+  enableDebugLog: 1
 --- !u!1001 &1307691668542179359
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1449,6 +1502,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: -0.7
       objectReference: {fileID: 0}
+    - target: {fileID: 7742026058527437698, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
+      propertyPath: animationDuration
+      value: 0.75
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 8770432402825680242, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
@@ -1456,6 +1513,9 @@ PrefabInstance:
     - {fileID: 277089453879678844, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
     - {fileID: 5953877956335344452, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 1780503699135714906, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 7532161305171333230}
     - targetCorrespondingSourceObject: {fileID: 3732983153203729177, guid: 09c4aa3a79dc06943ac474b03068e16b, type: 3}
       insertIndex: 12
       addedObject: {fileID: 2224550346068792837}

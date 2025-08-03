@@ -1,5 +1,58 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1801908421903652575
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1269533068555054294}
+  - component: {fileID: 7606951023642435236}
+  m_Layer: 0
+  m_Name: ProximityMessageSender (3)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1269533068555054294
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1801908421903652575}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: -17.282, y: 1.52, z: 3.4800014}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7839339341239415901}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7606951023642435236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1801908421903652575}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c4abf8707ab04d4fa033889385e81ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  messageType: 0
+  messageTitle: "\u63D0\u793A"
+  messageContent: Object Shaking & Missing material
+  useCustomDisplayTime: 1
+  customDisplayTime: 15
+  triggerOnce: 0
+  destroyAfterTrigger: 1
+  showDebugGizmos: 1
+  enableDebugLog: 1
 --- !u!1 &8230448316951640689
 GameObject:
   m_ObjectHideFlags: 0
@@ -30,6 +83,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2670326567790181212}
+  - {fileID: 1269533068555054294}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &6635743641648504878
@@ -56,6 +110,10 @@ PrefabInstance:
       propertyPath: buggyMaterial
       value: 
       objectReference: {fileID: 2100000, guid: 9014e86a5f5c87d4e9de361d7a9ac8e7, type: 2}
+    - target: {fileID: 7412076486578268893, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
+      propertyPath: animationDuration
+      value: 0.75
+      objectReference: {fileID: 0}
     - target: {fileID: 8725726969874865010, guid: 7e2e67a1b535c3c4ba70d80bfe8ec0e1, type: 3}
       propertyPath: m_LocalPosition.x
       value: -7.5

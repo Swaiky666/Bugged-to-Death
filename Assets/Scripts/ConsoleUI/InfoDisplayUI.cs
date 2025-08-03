@@ -116,7 +116,7 @@ namespace BugFixerGame
         private void Start()
         {
             UpdateCurrentRoom();
-            RefreshBugInfo();
+            //RefreshBugInfo();
         }
 
         private void OnEnable()
@@ -158,7 +158,7 @@ namespace BugFixerGame
                 if (nr != lastKnownRoomId)
                 {
                     UpdateCurrentRoom();
-                    RefreshBugInfo();
+                    //RefreshBugInfo();
                 }
             }
 
