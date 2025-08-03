@@ -16,6 +16,14 @@ public class RoomSystem : MonoBehaviour
     [Header("检测设置")]
     public float detectionInterval = 0.1f; // 检测间隔（秒）
 
+    [Header("房间检测范围设置")]
+    public float roomDetectionRange = 10f; // 房间检测范围（从房间中心向外的距离）
+    public bool useBoxDetection = true; // 是否使用盒形检测（false为圆形检测）
+    public Vector3 roomDetectionSize = new Vector3(15f, 10f, 15f); // 盒形检测的尺寸
+    public Vector3 detectionOffset = Vector3.zero; // 检测范围相对于房间中心的偏移量
+    public bool showDetectionBounds = true; // 是否在Scene视图中显示检测边界
+    public Color detectionBoundsColor = Color.cyan; // 检测边界颜色
+
     [Header("玩家引用管理")]
     [SerializeField] private Transform assignedPlayer = null; // 显示当前分配的玩家
     [SerializeField] private float maxWaitTimeForPlayer = 10f; // 等待玩家注册的最大时间（秒）
@@ -95,10 +103,79 @@ public class RoomSystem : MonoBehaviour
             }
         }
 
+        /// <summary>
+        /// 检查玩家是否在房间的检测范围内
+        /// </summary>
+        public bool IsPlayerInRange(Vector3 playerPos, float detectionRange, bool useBox, Vector3 detectionSize, Vector3 offset)
+        {
+            if (gameObject == null) return false;
+
+            Vector3 roomCenter = gameObject.transform.position + offset;
+
+            if (useBox)
+            {
+                // 使用盒形检测
+                Vector3 offsetFromCenter = playerPos - roomCenter;
+                Vector3 halfSize = detectionSize * 0.5f;
+
+                return Mathf.Abs(offsetFromCenter.x) <= halfSize.x &&
+                       Mathf.Abs(offsetFromCenter.y) <= halfSize.y &&
+                       Mathf.Abs(offsetFromCenter.z) <= halfSize.z;
+            }
+            else
+            {
+                // 使用圆形检测
+                float distance = Vector3.Distance(playerPos, roomCenter);
+                return distance <= detectionRange;
+            }
+        }
+
+        /// <summary>
+        /// 获取玩家到房间中心的距离
+        /// </summary>
         public float GetDistanceToPlayer(Vector3 playerPos)
         {
             if (gameObject == null) return float.MaxValue;
             return Vector3.Distance(playerPos, gameObject.transform.position);
+        }
+
+        /// <summary>
+        /// 获取玩家到检测中心的距离（考虑offset）
+        /// </summary>
+        public float GetDistanceToDetectionCenter(Vector3 playerPos, Vector3 offset)
+        {
+            if (gameObject == null) return float.MaxValue;
+            Vector3 detectionCenter = gameObject.transform.position + offset;
+            return Vector3.Distance(playerPos, detectionCenter);
+        }
+
+        /// <summary>
+        /// 获取玩家在房间检测范围内的"深度"（0-1，1表示在中心）
+        /// </summary>
+        public float GetPlayerDepthInRoom(Vector3 playerPos, float detectionRange, bool useBox, Vector3 detectionSize, Vector3 offset)
+        {
+            if (gameObject == null || !IsPlayerInRange(playerPos, detectionRange, useBox, detectionSize, offset))
+                return 0f;
+
+            Vector3 roomCenter = gameObject.transform.position + offset;
+
+            if (useBox)
+            {
+                Vector3 offsetFromCenter = playerPos - roomCenter;
+                Vector3 halfSize = detectionSize * 0.5f;
+
+                // 计算在每个轴上的深度，取最小值
+                float depthX = 1f - (Mathf.Abs(offsetFromCenter.x) / halfSize.x);
+                float depthY = 1f - (Mathf.Abs(offsetFromCenter.y) / halfSize.y);
+                float depthZ = 1f - (Mathf.Abs(offsetFromCenter.z) / halfSize.z);
+
+                return Mathf.Min(depthX, depthY, depthZ);
+            }
+            else
+            {
+                float distance = Vector3.Distance(playerPos, roomCenter);
+                return 1f - (distance / detectionRange);
+            }
         }
 
         /// <summary>
@@ -422,6 +499,44 @@ public class RoomSystem : MonoBehaviour
         else
         {
             Debug.Log("✅ 没有发现需要清理的销毁对象");
+        }
+    }
+
+    [ContextMenu("显示房间检测状态")]
+    public void ShowRoomDetectionStatus()
+    {
+        if (player == null)
+        {
+            Debug.LogWarning("没有玩家对象");
+            return;
+        }
+
+        Debug.Log("=== 房间检测状态 ===");
+        Debug.Log($"玩家位置: {player.position}");
+        Debug.Log($"检测方式: {(useBoxDetection ? "盒形" : "圆形")}");
+        Debug.Log($"检测范围: {(useBoxDetection ? roomDetectionSize.ToString() : roomDetectionRange.ToString())}");
+        Debug.Log($"检测偏移: {detectionOffset}");
+        Debug.Log($"当前房间序列: {currentRoomSequence}");
+
+        var roomsContainingPlayer = GetRoomsContainingPlayer();
+        Debug.Log($"玩家当前在 {roomsContainingPlayer.Count} 个房间的检测范围内");
+
+        var depthInfo = GetPlayerDepthInAllRooms();
+
+        foreach (var room in roomInstances)
+        {
+            if (room.gameObject != null)
+            {
+                float distance = room.GetDistanceToPlayer(player.position);
+                float detectionDistance = room.GetDistanceToDetectionCenter(player.position, detectionOffset);
+                float depth = depthInfo.ContainsKey(room.currentSequence) ? depthInfo[room.currentSequence] : 0f;
+                bool inRange = depth > 0f;
+
+                string status = room.currentSequence == currentRoomSequence ? "✓当前" :
+                               inRange ? "✓范围内" : "范围外";
+
+                Debug.Log($"房间序列{room.currentSequence}: {status}, 房间距离:{distance:F2}, 检测中心距离:{detectionDistance:F2}, 深度:{depth:F2}");
+            }
         }
     }
 
@@ -1049,9 +1164,67 @@ public class RoomSystem : MonoBehaviour
 
     #region 玩家位置检测
 
+    /// <summary>
+    /// 改进的玩家房间位置检测
+    /// </summary>
     void CheckPlayerRoomPosition()
     {
         if (player == null) return;
+
+        Vector3 playerPos = player.position;
+
+        // 检查玩家当前是否还在当前房间内
+        RoomInstance currentRoom = GetCurrentRoom();
+        bool playerInCurrentRoom = currentRoom?.IsPlayerInRange(playerPos, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset) ?? false;
+
+        if (playerInCurrentRoom)
+        {
+            // 玩家仍在当前房间内，不需要切换
+            return;
+        }
+
+        // 玩家不在当前房间内，寻找新的目标房间
+        RoomInstance targetRoom = null;
+        float bestDepth = 0f;
+
+        foreach (var room in roomInstances)
+        {
+            if (room.gameObject != null && room.currentSequence != currentRoomSequence)
+            {
+                if (room.IsPlayerInRange(playerPos, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset))
+                {
+                    float depth = room.GetPlayerDepthInRoom(playerPos, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset);
+                    if (depth > bestDepth)
+                    {
+                        bestDepth = depth;
+                        targetRoom = room;
+                    }
+                }
+            }
+        }
+
+        // 如果找到了目标房间，切换到该房间
+        if (targetRoom != null)
+        {
+            if (enableDebugLog)
+            {
+                Debug.Log($"🎯 玩家从房间序列{currentRoomSequence}切换到序列{targetRoom.currentSequence}，深度:{bestDepth:F2}");
+            }
+            OnPlayerEnterRoom(targetRoom.currentSequence);
+        }
+        else
+        {
+            // 如果没有找到目标房间，使用备用逻辑（最近距离）
+            CheckPlayerRoomPositionFallback();
+        }
+    }
+
+    /// <summary>
+    /// 备用的房间检测逻辑（基于最近距离）
+    /// </summary>
+    void CheckPlayerRoomPositionFallback()
+    {
+        Vector3 playerPos = player.position;
 
         // 找到距离玩家最近的房间
         RoomInstance closestRoom = null;
@@ -1061,7 +1234,7 @@ public class RoomSystem : MonoBehaviour
         {
             if (room.gameObject != null)
             {
-                float distance = room.GetDistanceToPlayer(player.position);
+                float distance = room.GetDistanceToPlayer(playerPos);
                 if (distance < closestDistance)
                 {
                     closestDistance = distance;
@@ -1072,9 +1245,66 @@ public class RoomSystem : MonoBehaviour
 
         if (closestRoom != null && closestRoom.currentSequence != currentRoomSequence)
         {
-            // 玩家进入了新房间
-            OnPlayerEnterRoom(closestRoom.currentSequence);
+            // 只有当距离足够近时才切换房间
+            float maxSwitchDistance = useBoxDetection ?
+                Mathf.Max(roomDetectionSize.x, roomDetectionSize.z) :
+                roomDetectionRange;
+
+            if (closestDistance <= maxSwitchDistance * 1.5f) // 给一些容错空间
+            {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"🎯 备用检测：玩家切换到最近房间序列{closestRoom.currentSequence}，距离:{closestDistance:F2}");
+                }
+                OnPlayerEnterRoom(closestRoom.currentSequence);
+            }
         }
+    }
+
+    /// <summary>
+    /// 获取玩家当前所在的所有房间（可能同时在多个房间的检测范围内）
+    /// </summary>
+    public List<RoomInstance> GetRoomsContainingPlayer()
+    {
+        List<RoomInstance> roomsContainingPlayer = new List<RoomInstance>();
+
+        if (player == null) return roomsContainingPlayer;
+
+        Vector3 playerPos = player.position;
+
+        foreach (var room in roomInstances)
+        {
+            if (room.gameObject != null &&
+                room.IsPlayerInRange(playerPos, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset))
+            {
+                roomsContainingPlayer.Add(room);
+            }
+        }
+
+        return roomsContainingPlayer;
+    }
+
+    /// <summary>
+    /// 获取玩家在所有房间中的深度信息（调试用）
+    /// </summary>
+    public Dictionary<int, float> GetPlayerDepthInAllRooms()
+    {
+        Dictionary<int, float> depthInfo = new Dictionary<int, float>();
+
+        if (player == null) return depthInfo;
+
+        Vector3 playerPos = player.position;
+
+        foreach (var room in roomInstances)
+        {
+            if (room.gameObject != null)
+            {
+                float depth = room.GetPlayerDepthInRoom(playerPos, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset);
+                depthInfo[room.currentSequence] = depth;
+            }
+        }
+
+        return depthInfo;
     }
 
     public void OnPlayerEnterRoom(int sequenceNumber)
@@ -1570,6 +1800,7 @@ public class RoomSystem : MonoBehaviour
 
         if (!roomsCreated) return;
 
+        // 绘制房间边界
         Gizmos.color = debugLineColor;
 
         foreach (var room in roomInstances)
@@ -1577,7 +1808,28 @@ public class RoomSystem : MonoBehaviour
             if (room.gameObject != null)
             {
                 Vector3 center = room.gameObject.transform.position;
+                Vector3 detectionCenter = center + detectionOffset;
+
                 DrawRoomBounds(center, roomSize);
+
+                // 绘制检测范围
+                if (showDetectionBounds)
+                {
+                    Gizmos.color = detectionBoundsColor;
+                    if (useBoxDetection)
+                    {
+                        Gizmos.DrawWireCube(detectionCenter, roomDetectionSize);
+                    }
+                    else
+                    {
+                        // 绘制圆形检测范围（在XZ平面）
+#if UNITY_EDITOR
+                        UnityEditor.Handles.color = detectionBoundsColor;
+                        UnityEditor.Handles.DrawWireDisc(detectionCenter, Vector3.up, roomDetectionRange);
+#endif
+                    }
+                    Gizmos.color = debugLineColor;
+                }
 
                 // 绘制序列号和Bug信息
 #if UNITY_EDITOR
@@ -1592,16 +1844,54 @@ public class RoomSystem : MonoBehaviour
                 if (player != null)
                 {
                     float distance = room.GetDistanceToPlayer(player.position);
+                    float detectionDistance = room.GetDistanceToDetectionCenter(player.position, detectionOffset);
+                    bool inRange = room.IsPlayerInRange(player.position, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset);
+                    float depth = room.GetPlayerDepthInRoom(player.position, roomDetectionRange, useBoxDetection, roomDetectionSize, detectionOffset);
+
                     label += $"\nDist{distance:F1}";
+                    label += $"\nDet{detectionDistance:F1}";
+                    label += $"\n{(inRange ? "✓IN" : "OUT")}";
+                    if (inRange) label += $" D{depth:F2}";
                 }
 
                 UnityEditor.Handles.Label(labelPos, label);
 #endif
 
+                // 高亮当前房间
                 if (room.currentSequence == currentRoomSequence)
                 {
                     Gizmos.color = Color.yellow;
                     DrawRoomBounds(center, roomSize * 1.1f);
+
+                    // 高亮当前房间的检测范围
+                    if (showDetectionBounds)
+                    {
+                        Gizmos.color = Color.yellow;
+                        if (useBoxDetection)
+                        {
+                            Gizmos.DrawWireCube(detectionCenter, roomDetectionSize * 1.1f);
+                        }
+                        else
+                        {
+#if UNITY_EDITOR
+                            UnityEditor.Handles.color = Color.yellow;
+                            UnityEditor.Handles.DrawWireDisc(detectionCenter, Vector3.up, roomDetectionRange * 1.1f);
+#endif
+                        }
+                    }
+
+                    Gizmos.color = debugLineColor;
+                }
+
+                // 绘制检测中心点（如果有偏移）
+                if (detectionOffset != Vector3.zero)
+                {
+                    Gizmos.color = Color.magenta;
+                    Gizmos.DrawWireSphere(detectionCenter, 0.5f);
+
+                    // 绘制从房间中心到检测中心的连线
+                    Gizmos.color = Color.gray;
+                    Gizmos.DrawLine(center, detectionCenter);
                     Gizmos.color = debugLineColor;
                 }
             }
@@ -1612,6 +1902,22 @@ public class RoomSystem : MonoBehaviour
         {
             Gizmos.color = Color.red;
             Gizmos.DrawSphere(player.position, 1f);
+
+            // 绘制玩家到当前房间的连线
+            RoomInstance currentRoom = GetCurrentRoom();
+            if (currentRoom?.gameObject != null)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(player.position, currentRoom.gameObject.transform.position);
+
+                // 绘制玩家到当前房间检测中心的连线
+                if (detectionOffset != Vector3.zero)
+                {
+                    Gizmos.color = Color.cyan;
+                    Vector3 detectionCenter = currentRoom.gameObject.transform.position + detectionOffset;
+                    Gizmos.DrawLine(player.position, detectionCenter);
+                }
+            }
         }
     }
 

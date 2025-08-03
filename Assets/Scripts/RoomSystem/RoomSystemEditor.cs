@@ -9,7 +9,10 @@ public class RoomSystemEditor : Editor
 {
     private bool showCurrentRoomBugs = true;
     private bool showPlayerAssignmentSettings = true;
+    private bool showDetectionSettings = true; // 新增：检测设置折叠状态
+    private bool showDetectionStatus = false; // 新增：检测状态折叠状态
     private Vector2 bugListScrollPosition = Vector2.zero;
+    private Vector2 detectionStatusScrollPosition = Vector2.zero; // 新增：检测状态滚动位置
 
     public override void OnInspectorGUI()
     {
@@ -24,6 +27,16 @@ public class RoomSystemEditor : Editor
         if (Application.isPlaying)
         {
             DrawPlayerAssignmentStatus(roomSystem);
+            EditorGUILayout.Space();
+        }
+
+        // 房间检测设置和状态区域
+        if (Application.isPlaying && roomSystem != null)
+        {
+            DrawRoomDetectionSettings(roomSystem);
+            EditorGUILayout.Space();
+
+            DrawRoomDetectionStatus(roomSystem);
             EditorGUILayout.Space();
         }
 
@@ -95,6 +108,19 @@ public class RoomSystemEditor : Editor
         if (GUILayout.Button("显示当前布局"))
         {
             roomSystem.LogCurrentLayout();
+        }
+        EditorGUILayout.EndHorizontal();
+
+        // 新增：房间检测相关按钮
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("显示检测状态"))
+        {
+            roomSystem.ShowRoomDetectionStatus();
+        }
+
+        if (GUILayout.Button("测试检测范围"))
+        {
+            TestDetectionRange(roomSystem);
         }
         EditorGUILayout.EndHorizontal();
 
@@ -231,6 +257,433 @@ public class RoomSystemEditor : Editor
         {
             EditorUtility.SetDirty(roomSystem);
         }
+    }
+
+    // 新增：绘制房间检测设置
+    private void DrawRoomDetectionSettings(RoomSystem roomSystem)
+    {
+        showDetectionSettings = EditorGUILayout.Foldout(showDetectionSettings, "房间检测设置", true);
+
+        if (showDetectionSettings)
+        {
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+
+            EditorGUILayout.LabelField($"检测方式: {(roomSystem.useBoxDetection ? "盒形检测" : "圆形检测")}");
+
+            if (roomSystem.useBoxDetection)
+            {
+                EditorGUILayout.LabelField($"检测尺寸: {roomSystem.roomDetectionSize}");
+            }
+            else
+            {
+                EditorGUILayout.LabelField($"检测半径: {roomSystem.roomDetectionRange}");
+            }
+
+            EditorGUILayout.LabelField($"检测偏移: {roomSystem.detectionOffset}");
+            EditorGUILayout.LabelField($"显示检测边界: {(roomSystem.showDetectionBounds ? "是" : "否")}");
+            EditorGUILayout.LabelField($"边界颜色: {roomSystem.detectionBoundsColor}");
+
+            // 快速调整按钮
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("切换检测方式"))
+            {
+                roomSystem.useBoxDetection = !roomSystem.useBoxDetection;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            if (GUILayout.Button("切换边界显示"))
+            {
+                roomSystem.showDetectionBounds = !roomSystem.showDetectionBounds;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space();
+
+            // 3D偏移快速调整
+            EditorGUILayout.LabelField("快速3D偏移调整:", EditorStyles.boldLabel);
+
+            // X轴偏移调整
+            EditorGUILayout.LabelField("X轴偏移:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("X-2"))
+            {
+                roomSystem.detectionOffset.x -= 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("X-1"))
+            {
+                roomSystem.detectionOffset.x -= 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("X-0.5"))
+            {
+                roomSystem.detectionOffset.x -= 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("重置X"))
+            {
+                roomSystem.detectionOffset.x = 0f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("X+0.5"))
+            {
+                roomSystem.detectionOffset.x += 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("X+1"))
+            {
+                roomSystem.detectionOffset.x += 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("X+2"))
+            {
+                roomSystem.detectionOffset.x += 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField($"当前X偏移: {roomSystem.detectionOffset.x:F2}");
+
+            EditorGUILayout.Space();
+
+            // Y轴偏移调整
+            EditorGUILayout.LabelField("Y轴偏移:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Y-2"))
+            {
+                roomSystem.detectionOffset.y -= 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Y-1"))
+            {
+                roomSystem.detectionOffset.y -= 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Y-0.5"))
+            {
+                roomSystem.detectionOffset.y -= 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("重置Y"))
+            {
+                roomSystem.detectionOffset.y = 0f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Y+0.5"))
+            {
+                roomSystem.detectionOffset.y += 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Y+1"))
+            {
+                roomSystem.detectionOffset.y += 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Y+2"))
+            {
+                roomSystem.detectionOffset.y += 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField($"当前Y偏移: {roomSystem.detectionOffset.y:F2}");
+
+            EditorGUILayout.Space();
+
+            // Z轴偏移调整
+            EditorGUILayout.LabelField("Z轴偏移:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Z-2"))
+            {
+                roomSystem.detectionOffset.z -= 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Z-1"))
+            {
+                roomSystem.detectionOffset.z -= 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Z-0.5"))
+            {
+                roomSystem.detectionOffset.z -= 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("重置Z"))
+            {
+                roomSystem.detectionOffset.z = 0f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Z+0.5"))
+            {
+                roomSystem.detectionOffset.z += 0.5f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Z+1"))
+            {
+                roomSystem.detectionOffset.z += 1f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+            if (GUILayout.Button("Z+2"))
+            {
+                roomSystem.detectionOffset.z += 2f;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField($"当前Z偏移: {roomSystem.detectionOffset.z:F2}");
+
+            EditorGUILayout.Space();
+
+            // 快捷重置和复制功能
+            EditorGUILayout.LabelField("快捷操作:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("重置全部"))
+            {
+                roomSystem.detectionOffset = Vector3.zero;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            if (GUILayout.Button("复制偏移值"))
+            {
+                EditorGUIUtility.systemCopyBuffer = $"({roomSystem.detectionOffset.x:F2}, {roomSystem.detectionOffset.y:F2}, {roomSystem.detectionOffset.z:F2})";
+                Debug.Log($"偏移值已复制到剪贴板: {EditorGUIUtility.systemCopyBuffer}");
+            }
+
+            if (GUILayout.Button("对称翻转"))
+            {
+                roomSystem.detectionOffset = -roomSystem.detectionOffset;
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            // 预设偏移值
+            EditorGUILayout.LabelField("常用预设:", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("地面对齐"))
+            {
+                roomSystem.detectionOffset = new Vector3(0f, -1f, 0f);
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            if (GUILayout.Button("中心稍低"))
+            {
+                roomSystem.detectionOffset = new Vector3(0f, -0.5f, 0f);
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            if (GUILayout.Button("向前偏移"))
+            {
+                roomSystem.detectionOffset = new Vector3(0f, 0f, 2f);
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            if (GUILayout.Button("向后偏移"))
+            {
+                roomSystem.detectionOffset = new Vector3(0f, 0f, -2f);
+                EditorUtility.SetDirty(roomSystem);
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            // 显示当前完整偏移值
+            EditorGUILayout.Space();
+            string offsetInfo = $"当前3D偏移: X={roomSystem.detectionOffset.x:F2}, Y={roomSystem.detectionOffset.y:F2}, Z={roomSystem.detectionOffset.z:F2}";
+            EditorGUILayout.LabelField(offsetInfo, EditorStyles.helpBox);
+
+            EditorGUILayout.EndVertical();
+        }
+    }
+
+    // 新增：绘制房间检测状态
+    private void DrawRoomDetectionStatus(RoomSystem roomSystem)
+    {
+        if (!roomSystem.HasValidPlayer()) return;
+
+        showDetectionStatus = EditorGUILayout.Foldout(showDetectionStatus, "实时检测状态", true);
+
+        if (showDetectionStatus)
+        {
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+
+            // 获取检测信息
+            var roomsContainingPlayer = roomSystem.GetRoomsContainingPlayer();
+            var depthInfo = roomSystem.GetPlayerDepthInAllRooms();
+
+            EditorGUILayout.LabelField($"玩家位置: {roomSystem.GetPlayer().position.ToString("F2")}");
+            EditorGUILayout.LabelField($"当前房间序列: {roomSystem.GetCurrentRoomSequence()}");
+            EditorGUILayout.LabelField($"玩家在 {roomsContainingPlayer.Count} 个房间的检测范围内");
+
+            if (roomsContainingPlayer.Count > 1)
+            {
+                EditorGUILayout.HelpBox("玩家同时在多个房间的检测范围内！可能需要调整检测范围大小。", MessageType.Warning);
+            }
+
+            // 滚动区域显示所有房间的检测状态
+            detectionStatusScrollPosition = EditorGUILayout.BeginScrollView(detectionStatusScrollPosition, GUILayout.MaxHeight(200));
+
+            var sortedRooms = depthInfo.OrderByDescending(kvp => kvp.Value).ToList();
+
+            foreach (var kvp in sortedRooms)
+            {
+                int roomSequence = kvp.Key;
+                float depth = kvp.Value;
+
+                // 获取房间实例
+                RoomSystem.RoomInstance room = null;
+                var roomInstances = GetRoomInstances(roomSystem);
+                if (roomInstances != null)
+                {
+                    foreach (var roomObj in roomInstances)
+                    {
+                        RoomSystem.RoomInstance roomInstance = roomObj as RoomSystem.RoomInstance;
+                        if (roomInstance != null && roomInstance.currentSequence == roomSequence)
+                        {
+                            room = roomInstance;
+                            break;
+                        }
+                    }
+                }
+
+                if (room?.gameObject != null)
+                {
+                    EditorGUILayout.BeginHorizontal();
+
+                    // 状态颜色指示
+                    Color originalColor = GUI.backgroundColor;
+                    if (roomSequence == roomSystem.GetCurrentRoomSequence())
+                        GUI.backgroundColor = Color.green;
+                    else if (depth > 0f)
+                        GUI.backgroundColor = Color.yellow;
+                    else
+                        GUI.backgroundColor = Color.white;
+
+                    float distance = room.GetDistanceToPlayer(roomSystem.GetPlayer().position);
+                    bool inRange = depth > 0f;
+
+                    string statusText = $"序列{roomSequence}: ";
+                    statusText += inRange ? $"✓范围内 深度{depth:F2}" : "范围外";
+                    statusText += $" 距离{distance:F2}";
+
+                    if (roomSequence == roomSystem.GetCurrentRoomSequence())
+                        statusText += " [当前]";
+
+                    if (GUILayout.Button(statusText, EditorStyles.miniButton))
+                    {
+                        Selection.activeGameObject = room.gameObject;
+                        EditorGUIUtility.PingObject(room.gameObject);
+                    }
+
+                    GUI.backgroundColor = originalColor;
+                    EditorGUILayout.EndHorizontal();
+                }
+            }
+
+            EditorGUILayout.EndScrollView();
+
+            EditorGUILayout.EndVertical();
+        }
+    }
+
+    // 获取房间实例列表的辅助方法
+    private System.Collections.IList GetRoomInstances(RoomSystem roomSystem)
+    {
+        var roomInstancesField = typeof(RoomSystem).GetField("roomInstances",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return roomInstancesField?.GetValue(roomSystem) as System.Collections.IList;
+    }
+
+    // 新增：测试检测范围
+    private void TestDetectionRange(RoomSystem roomSystem)
+    {
+        if (!roomSystem.HasValidPlayer())
+        {
+            EditorUtility.DisplayDialog("测试失败", "需要先分配玩家才能测试检测范围。", "确定");
+            return;
+        }
+
+        Debug.Log("=== 测试房间检测范围（含3D偏移） ===");
+
+        var player = roomSystem.GetPlayer();
+        Vector3 originalPos = player.position;
+
+        Debug.Log($"玩家原始位置: {originalPos}");
+        Debug.Log($"当前检测偏移: {roomSystem.detectionOffset}");
+        Debug.Log($"检测方式: {(roomSystem.useBoxDetection ? "盒形" : "圆形")}");
+
+        // 测试不同位置的检测效果
+        Vector3[] testPositions = {
+            originalPos + Vector3.right * 3f,        // X+
+            originalPos + Vector3.left * 3f,         // X-
+            originalPos + Vector3.up * 2f,           // Y+
+            originalPos + Vector3.down * 2f,         // Y-
+            originalPos + Vector3.forward * 3f,      // Z+
+            originalPos + Vector3.back * 3f,         // Z-
+            originalPos + roomSystem.detectionOffset, // 偏移中心
+            originalPos + roomSystem.detectionOffset + Vector3.right * 2f, // 偏移中心+X
+            originalPos + roomSystem.detectionOffset + Vector3.up * 1f,    // 偏移中心+Y
+            originalPos + roomSystem.detectionOffset + Vector3.forward * 2f, // 偏移中心+Z
+        };
+
+        string[] positionNames = {
+            "右侧3米(X+)",
+            "左侧3米(X-)",
+            "上方2米(Y+)",
+            "下方2米(Y-)",
+            "前方3米(Z+)",
+            "后方3米(Z-)",
+            "偏移中心",
+            "偏移中心+X",
+            "偏移中心+Y",
+            "偏移中心+Z"
+        };
+
+        for (int i = 0; i < testPositions.Length; i++)
+        {
+            var testPos = testPositions[i];
+
+            // 临时移动玩家到测试位置
+            player.position = testPos;
+
+            var roomsAtPos = roomSystem.GetRoomsContainingPlayer();
+            var depthAtPos = roomSystem.GetPlayerDepthInAllRooms();
+
+            Debug.Log($"测试位置[{positionNames[i]}] {testPos}: 在{roomsAtPos.Count}个房间范围内");
+
+            foreach (var room in roomsAtPos)
+            {
+                float depth = depthAtPos.ContainsKey(room.currentSequence) ? depthAtPos[room.currentSequence] : 0f;
+                float roomDistance = room.GetDistanceToPlayer(testPos);
+                float detectionDistance = room.GetDistanceToDetectionCenter(testPos, roomSystem.detectionOffset);
+                Debug.Log($"  房间序列{room.currentSequence}: 深度{depth:F2}, 房间距离{roomDistance:F2}, 检测距离{detectionDistance:F2}");
+            }
+
+            if (roomsAtPos.Count == 0)
+            {
+                Debug.Log($"  无房间检测到玩家");
+            }
+        }
+
+        // 恢复玩家原始位置
+        player.position = originalPos;
+
+        Debug.Log("检测范围测试完成，玩家位置已恢复");
+
+        // 显示当前状态
+        roomSystem.ShowRoomDetectionStatus();
+
+        // 额外的偏移分析
+        Debug.Log("=== 偏移分析 ===");
+        Debug.Log($"X轴偏移: {roomSystem.detectionOffset.x:F2} (向{'右': '左'})");
+        Debug.Log($"Y轴偏移: {roomSystem.detectionOffset.y:F2} (向{'上': '下'})");
+        Debug.Log($"Z轴偏移: {roomSystem.detectionOffset.z:F2} (向{'前': '后'})");
+        Debug.Log($"总偏移距离: {roomSystem.detectionOffset.magnitude:F2}");
     }
 
     private void DrawPlayerAssignmentStatus(RoomSystem roomSystem)
@@ -438,7 +891,7 @@ public class RoomSystemEditor : Editor
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var lastDetectionField = typeof(RoomSystem).GetField("lastDetectionTime",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var isInitializedField = typeof(RoomSystem).GetField("isInitialized",
+        var isInitializedField = typeof(RoomSystem).GetField("isFullyInitialized",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         if (currentSeqField != null && roomInstancesField != null)
@@ -462,6 +915,18 @@ public class RoomSystemEditor : Editor
             EditorGUILayout.LabelField($"全局Bug统计: {roomSystem.GetGlobalBugStats()}");
             EditorGUILayout.LabelField($"剩余Bug数量: {roomSystem.GetRemainingBugCount()}");
             EditorGUILayout.LabelField($"当前房间未修复Bug: {(roomSystem.CurrentRoomHasUnfixedBugs() ? "有" : "无")}");
+
+            // 房间检测状态
+            if (roomSystem.HasValidPlayer())
+            {
+                var roomsContaining = roomSystem.GetRoomsContainingPlayer();
+                EditorGUILayout.LabelField($"检测范围内房间数: {roomsContaining.Count}");
+
+                if (roomsContaining.Count > 1)
+                {
+                    EditorGUILayout.HelpBox("玩家同时在多个房间范围内！", MessageType.Warning);
+                }
+            }
         }
 
         EditorGUILayout.BeginHorizontal();
@@ -477,6 +942,7 @@ public class RoomSystemEditor : Editor
             roomSystem.ShowDistanceInfo();
             roomSystem.ShowCurrentRoomBugInfo();
             roomSystem.ShowPlayerAssignmentStatus();
+            roomSystem.ShowRoomDetectionStatus();
         }
         EditorGUILayout.EndHorizontal();
 
@@ -488,7 +954,7 @@ public class RoomSystemEditor : Editor
             if (!isInitialized && roomSystem.HasValidPlayer())
             {
                 // 通过调用私有方法完成初始化
-                var completeInitMethod = typeof(RoomSystem).GetMethod("CompleteInitialization",
+                var completeInitMethod = typeof(RoomSystem).GetMethod("CompleteFullInitialization",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 if (completeInitMethod != null)
                 {
@@ -511,13 +977,31 @@ public class RoomSystemEditor : Editor
     private void DrawHelpInfo()
     {
         EditorGUILayout.HelpBox(
-            "基于玩家主动分配的环形房间循环系统 + Bug追踪功能：\n\n" +
+            "基于玩家主动分配的环形房间循环系统 + Bug追踪功能 + 精确房间检测 + 完整3D偏移调整：\n\n" +
             "🎮 玩家分配机制：\n" +
             "• 玩家在实例化时主动向房间系统注册自己的引用\n" +
             "• Player脚本在Awake中查找'RoomSystem(Clone)'对象\n" +
             "• 调用roomSystem.SetPlayer(transform)传递引用\n" +
             "• 房间系统可以等待玩家分配，避免空引用错误\n" +
             "• 提供后备机制：如果等待超时，降级到Tag查找方式\n\n" +
+            "🎯 精确房间检测机制：\n" +
+            "• 支持盒形和圆形两种检测范围\n" +
+            "• 检测范围中心对齐房间GameObject的实际坐标\n" +
+            "• 支持完整3D检测偏移（detectionOffset）手动调整检测中心位置\n" +
+            "• 使用深度优先选择（选择玩家最深入的房间）\n" +
+            "• 提供备用检测逻辑，避免检测失败\n" +
+            "• Scene视图实时显示检测边界和状态\n" +
+            "• Inspector实时显示玩家在各房间的检测状态\n\n" +
+            "🔧 完整3D偏移功能（NEW）：\n" +
+            "• detectionOffset: Vector3，完整3D偏移控制\n" +
+            "• X轴偏移: 左右调整检测中心（±0.5, ±1, ±2）\n" +
+            "• Y轴偏移: 上下调整检测中心（±0.5, ±1, ±2）\n" +
+            "• Z轴偏移: 前后调整检测中心（±0.5, ±1, ±2）\n" +
+            "• 快捷操作: 重置全部、复制偏移值、对称翻转\n" +
+            "• 常用预设: 地面对齐、中心稍低、向前/后偏移\n" +
+            "• Scene视图用紫色球体显示检测中心位置\n" +
+            "• 灰色线条连接房间中心和检测中心\n" +
+            "• 显示房间距离vs检测中心距离的区别\n\n" +
             "🔄 环形循环机制：\n" +
             "• 完全移除Trigger，使用纯距离计算检测玩家位置\n" +
             "• 玩家向右移动时：将最左边的房间移动到最右边\n" +
@@ -531,37 +1015,53 @@ public class RoomSystemEditor : Editor
             "• 支持按房间序列查询Bug信息\n" +
             "• 自动更新当前房间Bug列表（可开关）\n" +
             "• 自动清理已销毁的Bug对象引用\n\n" +
-            "🔗 新增功能：\n" +
-            "• Player主动注册到房间系统，避免查找依赖\n" +
-            "• 房间系统等待机制，支持异步初始化\n" +
-            "• Inspector实时显示玩家分配状态\n" +
-            "• 手动分配玩家功能，便于调试\n" +
-            "• 多玩家场景支持，可选择分配哪个玩家\n" +
-            "• 强制初始化功能，便于开发调试\n\n" +
-            "🎮 外部调用接口：\n" +
+            "🔍 检测功能特性：\n" +
+            "• 盒形检测：基于3D边界框，适合规整的房间\n" +
+            "• 圆形检测：基于半径范围，适合开放的区域\n" +
+            "• 深度检测：计算玩家在房间内的深度（0-1）\n" +
+            "• 多房间检测：支持玩家同时在多个房间范围内\n" +
+            "• 检测边界可视化：Scene视图实时显示检测范围\n" +
+            "• 实时状态监控：Inspector显示详细检测信息\n" +
+            "• 3D偏移可视化：紫色球体和连线显示检测中心\n\n" +
+            "🔗 外部调用接口：\n" +
             "• SetPlayer(Transform) - 设置玩家引用\n" +
             "• GetPlayer() - 获取当前玩家引用\n" +
             "• HasValidPlayer() - 检查是否有有效玩家\n" +
             "• IsWaitingForPlayer() - 检查是否在等待玩家分配\n" +
             "• GetCurrentRoomBugObjects() - 获取当前房间所有有效Bug\n" +
             "• GetCurrentRoomActiveBugs() - 获取当前房间激活Bug\n" +
-            "• CurrentRoomHasUnfixedBugs() - 检查是否有未修复Bug\n\n" +
-            "🔍 调试工具：\n" +
+            "• CurrentRoomHasUnfixedBugs() - 检查是否有未修复Bug\n" +
+            "• GetRoomsContainingPlayer() - 获取包含玩家的所有房间\n" +
+            "• GetPlayerDepthInAllRooms() - 获取玩家在所有房间的深度\n\n" +
+            "🔍 强化调试工具：\n" +
             "• Inspector实时显示玩家分配和连接状态\n" +
             "• 实时显示当前房间有效Bug列表\n" +
+            "• 实时显示房间检测状态和深度信息\n" +
+            "• XYZ三轴快速调整按钮，实时预览效果\n" +
+            "• 常用预设和快捷操作，提高调试效率\n" +
+            "• 偏移值复制功能，方便记录和分享设置\n" +
             "• 点击Bug对象可直接选中并定位\n" +
             "• 颜色区分：红色=激活Bug，黄色=修复中，绿色=未激活\n" +
             "• Console输出详细的Bug状态和移动日志\n" +
-            "• Scene视图实时显示序列号、距离和Bug统计\n" +
-            "• 自动过滤已销毁的Bug对象，不再显示null引用\n" +
-            "• 强制初始化和玩家分配控制，便于开发测试\n\n" +
+            "• Scene视图实时显示序列号、距离、深度和Bug统计\n" +
+            "• 增强检测范围测试，包含10个测试位置验证XYZ偏移\n" +
+            "• 显示房间距离vs检测中心距离的对比分析\n\n" +
             "⚙️ 推荐工作流程：\n" +
             "1. 设置房间预制体列表和参数\n" +
-            "2. 确保玩家对象有正确的'Player'标签\n" +
-            "3. 启用'等待玩家分配'模式\n" +
-            "4. 运行游戏，玩家会自动注册到房间系统\n" +
-            "5. 如果出现问题，使用Inspector的调试按钮排查\n" +
-            "6. 使用'输出详细状态'按钮获取完整系统信息",
+            "2. 调整房间检测范围大小和类型\n" +
+            "3. 使用detectionOffset进行3D精确对齐：\n" +
+            "   - X轴: 调整左右偏移，对齐房间的实际游戏区域\n" +
+            "   - Y轴: 调整上下偏移，匹配玩家的活动高度\n" +
+            "   - Z轴: 调整前后偏移，对齐房间的主要活动区域\n" +
+            "4. 确保玩家对象有正确的'Player'标签\n" +
+            "5. 启用'等待玩家分配'模式\n" +
+            "6. 运行游戏，玩家会自动注册到房间系统\n" +
+            "7. 观察Inspector中的实时检测状态\n" +
+            "8. 使用XYZ快速调整按钮微调检测位置\n" +
+            "9. 使用常用预设快速应用典型配置\n" +
+            "10. 使用'测试检测范围'验证所有轴向的偏移设置\n" +
+            "11. 观察Scene视图中的检测边界和偏移效果\n" +
+            "12. 复制偏移值保存最佳配置供后续使用",
             MessageType.Info
         );
     }
